@@ -1,36 +1,62 @@
-# This is a basic workflow to help you get started with Actions
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+import pandas as pd
+import time
+import re
 
-name: CI
+driver = webdriver.Chrome()
+driver.get("https://www.chase.com/locator/us/pa")
+time.sleep(5)
 
-# Controls when the workflow will run
-on:
-  # Triggers the workflow on push or pull request events but only for the "main" branch
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+links = set()
 
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
+# Scroll to load all branches
+for _ in range(15):
+    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+    time.sleep(2)
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
-jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
-    runs-on: ubuntu-latest
+elements = driver.find_elements(By.TAG_NAME, "a")
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
-    steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v4
+for el in elements:
+    href = el.get_attribute("href")
+    if href and "/locator/banking/us/pa/" in href:
+        links.add(href.split("?")[0])
 
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
-        run: echo Hello, world!
+data = []
 
-      # Runs a set of commands using the runners shell
-      - name: Run a multi-line script
-        run: |
-          echo Add other actions to build,
-          echo test, and deploy your project.
+phone_pattern = re.compile(r'\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}')
+
+for link in links:
+    driver.get(link)
+    time.sleep(2)
+
+    page = driver.find_element(By.TAG_NAME, "body").text
+
+    name = driver.find_element(By.TAG_NAME, "h1").text
+
+    phone_match = phone_pattern.search(page)
+    phone = phone_match.group() if phone_match else ""
+
+    lines = page.split("\n")
+    address = ""
+    for line in lines:
+        if "PA" in line and any(char.isdigit() for char in line):
+            address = line
+            break
+
+    data.append({
+        "Branch Name": name,
+        "Address": address,
+        "Phone": phone
+    })
+
+driver.quit()
+
+df = pd.DataFrame(data)
+df.drop_duplicates(inplace=True)
+df.to_csv("PA_Chase_Branches.csv", index=False)
+df.to_excel("PA_Chase_Branches.xlsx", index=False)
+
+print("Done. Files created:")
+print("PA_Chase_Branches.csv")
+print("PA_Chase_Branches.xlsx")
