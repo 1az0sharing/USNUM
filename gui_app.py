@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from tkinter import scrolledtext
 import threading
+import csv
 from us_phone_generator import USPhoneNumberGenerator
 import os
 
@@ -39,10 +40,34 @@ class PhoneGeneratorApp:
         self.count_var = tk.StringVar(value="100")
         count_entry = ttk.Entry(main_frame, textvariable=self.count_var, width=35)
         count_entry.grid(row=2, column=1, sticky="ew", padx=5)
+
+        # Carrier selection
+        ttk.Label(main_frame, text="Carrier Preference:", font=("Helvetica", 11)).grid(row=3, column=0, sticky=tk.W, pady=5)
+        self.carrier_var = tk.StringVar(value="Any")
+        carriers = [
+            "Any",
+            "AT&T",
+            "Verizon",
+            "T-Mobile",
+            "Sprint",
+            "US Cellular",
+            "Boost Mobile",
+            "Cricket Wireless",
+            "Metro by T-Mobile",
+            "Xfinity Mobile",
+        ]
+        carrier_combo = ttk.Combobox(
+            main_frame,
+            textvariable=self.carrier_var,
+            values=carriers,
+            state="readonly",
+            width=35,
+        )
+        carrier_combo.grid(row=3, column=1, sticky="ew", padx=5)
         
         # Buttons frame
         btn_frame = ttk.Frame(main_frame)
-        btn_frame.grid(row=3, column=0, columnspan=2, pady=15)
+        btn_frame.grid(row=4, column=0, columnspan=2, pady=15)
         
         ttk.Button(btn_frame, text="Generate Numbers", 
                   command=self.generate_numbers).pack(side=tk.LEFT, padx=5)
@@ -53,22 +78,23 @@ class PhoneGeneratorApp:
         
         # Progress label
         self.progress_label = ttk.Label(main_frame, text="", font=("Helvetica", 10))
-        self.progress_label.grid(row=4, column=0, columnspan=2, pady=5)
+        self.progress_label.grid(row=5, column=0, columnspan=2, pady=5)
         
         # Text display area
-        ttk.Label(main_frame, text="Generated Numbers:", font=("Helvetica", 11)).grid(row=5, column=0, columnspan=2, sticky=tk.W, pady=(10, 5))
+        ttk.Label(main_frame, text="Generated Numbers:", font=("Helvetica", 11)).grid(row=6, column=0, columnspan=2, sticky=tk.W, pady=(10, 5))
         
         self.text_area = scrolledtext.ScrolledText(main_frame, height=25, width=80, wrap=tk.WORD)
-        self.text_area.grid(row=6, column=0, columnspan=2, sticky="nsew", padx=5, pady=5)
+        self.text_area.grid(row=7, column=0, columnspan=2, sticky="nsew", padx=5, pady=5)
         
         # Configure grid weights
         root.columnconfigure(0, weight=1)
         root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(1, weight=1)
-        main_frame.rowconfigure(6, weight=1)
+        main_frame.rowconfigure(7, weight=1)
         
         self.generated_numbers = []
         self.selected_state = None
+        self.selected_carrier = "Any"
     
     def generate_numbers(self):
         state = self.state_var.get()
@@ -86,6 +112,7 @@ class PhoneGeneratorApp:
             return
         
         # Disable button and show progress
+        self.selected_carrier = self.carrier_var.get() or "Any"
         self.progress_label.config(text=f"Generating {count} numbers for {state}...")
         self.root.update()
         
@@ -96,12 +123,15 @@ class PhoneGeneratorApp:
                 self.selected_state = state
                 
                 # Format output
-                output = f"Generated {len(self.generated_numbers)} phone numbers for {state}\n"
+                output = (
+                    f"Generated {len(self.generated_numbers)} phone numbers for {state} "
+                    f"(Carrier: {self.selected_carrier})\n"
+                )
                 output += "=" * 60 + "\n\n"
                 
                 for i, num in enumerate(self.generated_numbers, 1):
                     formatted = f"{num[:3]}-{num[3:6]}-{num[6:]}"
-                    output += f"{i}. {formatted}\n"
+                    output += f"{i}. {formatted} | carrier: {self.selected_carrier}\n"
                     if i % 50 == 0:  # Add a blank line every 50 numbers
                         output += "\n"
                 
@@ -138,17 +168,21 @@ class PhoneGeneratorApp:
             return
         
         try:
-            csv_content = USPhoneNumberGenerator.export_to_csv(
-                self.selected_state, 
-                self.generated_numbers,
-                os.path.basename(file_path)
-            )
-            
             with open(file_path, 'w', newline='') as f:
-                f.write(csv_content)
+                writer = csv.writer(f)
+                writer.writerow(["phone_number", "state", "area_code", "requested_carrier"])
+                for number in self.generated_numbers:
+                    writer.writerow([
+                        f"{number[:3]}-{number[3:6]}-{number[6:]}",
+                        self.selected_state,
+                        number[:3],
+                        self.selected_carrier,
+                    ])
             
             messagebox.showinfo("Success", f"File saved successfully!\n{file_path}")
-            self.progress_label.config(text=f"✓ Saved {len(self.generated_numbers)} numbers to CSV")
+            self.progress_label.config(
+                text=f"✓ Saved {len(self.generated_numbers)} numbers to CSV (Carrier: {self.selected_carrier})"
+            )
         except Exception as e:
             messagebox.showerror("Error", f"Failed to save file: {str(e)}")
     
@@ -157,6 +191,8 @@ class PhoneGeneratorApp:
         self.text_area.delete(1.0, tk.END)
         self.generated_numbers = []
         self.selected_state = None
+        self.selected_carrier = "Any"
+        self.carrier_var.set("Any")
         self.progress_label.config(text="")
 
 
