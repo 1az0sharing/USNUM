@@ -312,24 +312,58 @@
         <div class="form-group">
             <label for="count">Number of Phone Numbers:</label>
             <input type="number" id="count" placeholder="Enter count (e.g., 100, 1000, 10000)" min="1" max="1000000" value="100">
-            <div class="states-info">Supports unlimited generation up to 1,000,000</div>
+            <div class="states-info">Supports high-volume generation up to 1,000,000</div>
+        </div>
+
+        <div class="form-group" style="background:#f8fafc; border:1px solid #e5e7eb; border-radius:8px; padding:12px 14px;">
+            <label style="margin-bottom:8px;">Available Numbers in Selected State</label>
+            <div class="states-info" id="capSummary">Select a state to see total available capacity and low-stress set guidance.</div>
+            <div class="states-info" id="capSets" style="margin-top:6px;"></div>
         </div>
 
         <div class="form-group">
-            <label for="carrier">Carrier Preference (Optional):</label>
-            <select id="carrier">
-                <option value="Any">Any Carrier</option>
-                <option value="AT&T">AT&T</option>
-                <option value="Verizon">Verizon</option>
-                <option value="T-Mobile">T-Mobile</option>
-                <option value="Sprint">Sprint</option>
-                <option value="US Cellular">US Cellular</option>
-                <option value="Boost Mobile">Boost Mobile</option>
-                <option value="Cricket Wireless">Cricket Wireless</option>
-                <option value="Metro by T-Mobile">Metro by T-Mobile</option>
-                <option value="Xfinity Mobile">Xfinity Mobile</option>
-            </select>
-            <div class="states-info">Tag only in website mode (not API-verified).</div>
+            <label style="margin-bottom: 10px;">Carrier Selection (Choose one or more):</label>
+            <label for="carrierATT" style="display:flex; align-items:center; gap:8px; font-weight:500; margin-bottom:6px;">
+                <input type="checkbox" id="carrierATT" checked style="width:auto;">
+                AT&T
+            </label>
+            <label for="carrierVerizon" style="display:flex; align-items:center; gap:8px; font-weight:500; margin-bottom:6px;">
+                <input type="checkbox" id="carrierVerizon" checked style="width:auto;">
+                Verizon
+            </label>
+            <label for="carrierTMobile" style="display:flex; align-items:center; gap:8px; font-weight:500; margin-bottom:6px;">
+                <input type="checkbox" id="carrierTMobile" checked style="width:auto;">
+                T-Mobile
+            </label>
+            <label for="carrierSprint" style="display:flex; align-items:center; gap:8px; font-weight:500; margin-bottom:6px;">
+                <input type="checkbox" id="carrierSprint" style="width:auto;">
+                Sprint
+            </label>
+            <label for="carrierUSCellular" style="display:flex; align-items:center; gap:8px; font-weight:500; margin-bottom:6px;">
+                <input type="checkbox" id="carrierUSCellular" style="width:auto;">
+                US Cellular
+            </label>
+            <label for="carrierBoost" style="display:flex; align-items:center; gap:8px; font-weight:500; margin-bottom:6px;">
+                <input type="checkbox" id="carrierBoost" style="width:auto;">
+                Boost Mobile
+            </label>
+            <label for="carrierCricket" style="display:flex; align-items:center; gap:8px; font-weight:500; margin-bottom:6px;">
+                <input type="checkbox" id="carrierCricket" style="width:auto;">
+                Cricket Wireless
+            </label>
+            <label for="carrierMetro" style="display:flex; align-items:center; gap:8px; font-weight:500; margin-bottom:6px;">
+                <input type="checkbox" id="carrierMetro" style="width:auto;">
+                Metro by T-Mobile
+            </label>
+            <label for="carrierXfinity" style="display:flex; align-items:center; gap:8px; font-weight:500; margin-bottom:0;">
+                <input type="checkbox" id="carrierXfinity" style="width:auto;">
+                Xfinity Mobile
+            </label>
+            <label for="carrierNewCingular" style="display:flex; align-items:center; gap:8px; font-weight:500; margin-bottom:0; margin-top:6px;">
+                <input type="checkbox" id="carrierNewCingular" style="width:auto;">
+                NEW CINGULAR WIRELESS PCS
+            </label>
+            <div class="states-info">Each generated number is tagged with one selected carrier (round-robin assignment).</div>
         </div>
 
         <div class="form-group">
@@ -481,10 +515,12 @@
 
         let generatedNumbers = [];
         let currentState = '';
-        let currentCarrier = 'Any';
+        let currentCarriers = [];
         let filteredCount = 0;
         let selectedAreaCode = null;
         let verificationRunId = 0;
+        const USED_NUMBERS_STORAGE_KEY = 'usnum_used_numbers_v1';
+        const RECOMMENDED_SET_SIZE = 100000;
         const LOOKUP_WEBSITE_ALLAREACODES = 'https://www.allareacodes.com';
         const LOOKUP_WEBSITE_INTELIUS = 'https://www.intelius.com/reverse-phone-lookup';
         const LOOKUP_WEBSITE_WHITEPAGES = 'https://www.whitepages.com/phone';
@@ -509,6 +545,108 @@
                 whitepages: document.getElementById('lookupWhitepages').checked,
                 wirefly: document.getElementById('lookupWirefly').checked
             };
+        }
+
+        function getSelectedCarriers() {
+            const selected = [];
+            if (document.getElementById('carrierATT').checked) selected.push('AT&T');
+            if (document.getElementById('carrierVerizon').checked) selected.push('Verizon');
+            if (document.getElementById('carrierTMobile').checked) selected.push('T-Mobile');
+            if (document.getElementById('carrierSprint').checked) selected.push('Sprint');
+            if (document.getElementById('carrierUSCellular').checked) selected.push('US Cellular');
+            if (document.getElementById('carrierBoost').checked) selected.push('Boost Mobile');
+            if (document.getElementById('carrierCricket').checked) selected.push('Cricket Wireless');
+            if (document.getElementById('carrierMetro').checked) selected.push('Metro by T-Mobile');
+            if (document.getElementById('carrierXfinity').checked) selected.push('Xfinity Mobile');
+            if (document.getElementById('carrierNewCingular').checked) selected.push('NEW CINGULAR WIRELESS PCS');
+            return selected;
+        }
+
+        function loadUsedNumbersMap() {
+            try {
+                const raw = localStorage.getItem(USED_NUMBERS_STORAGE_KEY);
+                const parsed = raw ? JSON.parse(raw) : {};
+                return parsed && typeof parsed === 'object' ? parsed : {};
+            } catch (_) {
+                return {};
+            }
+        }
+
+        function saveUsedNumbersMap(map) {
+            localStorage.setItem(USED_NUMBERS_STORAGE_KEY, JSON.stringify(map));
+        }
+
+        function isPreviouslyUsed(state, rawNumber, usedMap) {
+            const stateKey = String(state || '').toUpperCase();
+            const list = Array.isArray(usedMap[stateKey]) ? usedMap[stateKey] : [];
+            return list.includes(rawNumber);
+        }
+
+        function markAsUsed(state, rows, usedMap) {
+            const stateKey = String(state || '').toUpperCase();
+            const existing = new Set(Array.isArray(usedMap[stateKey]) ? usedMap[stateKey] : []);
+            rows.forEach(row => {
+                if (row && row.raw) {
+                    existing.add(row.raw);
+                }
+            });
+            usedMap[stateKey] = Array.from(existing);
+            saveUsedNumbersMap(usedMap);
+        }
+
+        function countValidNxx() {
+            let valid = 0;
+            for (let i = 200; i <= 999; i++) {
+                const nxx = String(i).padStart(3, '0');
+                if (N11_CODES.has(nxx) || BUSINESS_PATTERNS[nxx] || nxx === '555') {
+                    continue;
+                }
+                valid++;
+            }
+            return valid;
+        }
+
+        function countValidLineNumbers() {
+            let valid = 0;
+            for (let i = 0; i <= 9999; i++) {
+                const line = String(i).padStart(4, '0');
+                if (isReservedLineNumber(line)) {
+                    continue;
+                }
+                valid++;
+            }
+            return valid;
+        }
+
+        function updateCapacityInfo() {
+            const state = document.getElementById('state').value;
+            const summary = document.getElementById('capSummary');
+            const sets = document.getElementById('capSets');
+
+            if (!state || !US_AREA_CODES[state]) {
+                summary.textContent = 'Select a state to see total available capacity and low-stress set guidance.';
+                sets.textContent = '';
+                return;
+            }
+
+            const validNxxCount = countValidNxx();
+            const validLineCount = countValidLineNumbers();
+            const perAreaCapacity = validNxxCount * validLineCount;
+            const totalCapacity = (US_AREA_CODES[state].length || 0) * perAreaCapacity;
+
+            const usedMap = loadUsedNumbersMap();
+            const usedCount = Math.min(
+                totalCapacity,
+                Array.isArray(usedMap[state]) ? usedMap[state].length : 0
+            );
+            const remaining = Math.max(0, totalCapacity - usedCount);
+
+            summary.textContent = `State ${state}: total ${totalCapacity.toLocaleString()} | used ${usedCount.toLocaleString()} | remaining ${remaining.toLocaleString()}`;
+
+            const requested = parseInt(document.getElementById('count').value || '0', 10);
+            const requestSets = requested > 0 ? Math.ceil(requested / RECOMMENDED_SET_SIZE) : 0;
+            const possibleSets = Math.floor(remaining / RECOMMENDED_SET_SIZE);
+            sets.textContent = `Recommended set size: ${RECOMMENDED_SET_SIZE.toLocaleString()} per run. This request: ${requestSets.toLocaleString()} set(s). Remaining capacity: ~${possibleSets.toLocaleString()} full set(s).`;
         }
 
         // Initialize state dropdown
@@ -546,6 +684,8 @@
                 option.textContent = `${code}`;
                 areaCodeSelect.appendChild(option);
             });
+
+            updateCapacityInfo();
         }
 
         // Handle area code selection
@@ -756,7 +896,12 @@
             // Get selected area code if any
             selectedAreaCode = document.getElementById('areaCode').value ? 
                 parseInt(document.getElementById('areaCode').value) : null;
-            currentCarrier = document.getElementById('carrier').value || 'Any';
+            const selectedCarriers = getSelectedCarriers();
+            if (selectedCarriers.length === 0) {
+                showMessage('Please select at least one carrier', 'error');
+                return;
+            }
+            currentCarriers = selectedCarriers;
 
             const enabledLookupSites = getEnabledLookupSites();
             const hasLookupSite = Object.values(enabledLookupSites).some(Boolean);
@@ -774,17 +919,26 @@
             const progressFill = document.getElementById('progressFill');
             progressBar.classList.add('active');
             progressFill.style.width = '0%';
+            document.getElementById('statStatus').textContent = 'Generating...';
+            document.getElementById('statStatus').style.color = '#667eea';
 
             let attempts = 0;
-            const maxAttempts = count * 2;
+            const maxAttempts = Math.max(count * 40, 10000);
+            const usedMap = loadUsedNumbersMap();
 
             while (generatedNumbers.length < count && attempts < maxAttempts) {
                 const number = generateSingleNumber(state);
                 if (number) {
+                    if (isPreviouslyUsed(state, number.raw, usedMap)) {
+                        filteredCount++;
+                        attempts++;
+                        continue;
+                    }
+
                     const sourceNames = [];
                     const sourceUrls = [];
 
-                    number.requestedCarrier = currentCarrier;
+                    number.requestedCarrier = selectedCarriers[generatedNumbers.length % selectedCarriers.length];
 
                     number.allAreaCodesUrl = enabledLookupSites.allareacodes
                         ? `${LOOKUP_WEBSITE_ALLAREACODES}/${number.areaCode}`
@@ -827,8 +981,14 @@
                 }
                 attempts++;
 
-                if (attempts % Math.max(1, Math.floor(count / 20)) === 0 || generatedNumbers.length === count) {
-                    progressFill.style.width = ((generatedNumbers.length) / count * 100) + '%';
+                if (attempts % 1000 === 0 || generatedNumbers.length === count) {
+                    const progressPct = (generatedNumbers.length / count) * 100;
+                    progressFill.style.width = `${progressPct}%`;
+                    const elapsedSec = Math.max(0.001, (performance.now() - startTime) / 1000);
+                    const rate = generatedNumbers.length / elapsedSec;
+                    const etaSec = rate > 0 ? Math.max(0, Math.round((count - generatedNumbers.length) / rate)) : 0;
+                    document.getElementById('statStatus').textContent = `Gen ${progressPct.toFixed(1)}% | ETA ~${etaSec}s`;
+                    await new Promise(resolve => setTimeout(resolve, 0));
                 }
             }
 
@@ -842,33 +1002,60 @@
             document.getElementById('statStatus').style.color = '#4CAF50';
 
             renderGeneratedOutput();
+            markAsUsed(state, generatedNumbers, usedMap);
 
             document.getElementById('downloadBtn').disabled = generatedNumbers.length === 0;
-            const filterMessage = filteredCount > 0 ? ` (filtered ${filteredCount} invalid/business numbers)` : '';
-            showMessage(`✓ Generated ${generatedNumbers.length.toLocaleString()} valid phone numbers for ${state}${filterMessage}. Carrier preference: ${currentCarrier}. Selected website lookup links attached (best effort).`, 'success');
+            const filterMessage = filteredCount > 0 ? ` (filtered ${filteredCount} invalid/business/previously-used numbers)` : '';
+            showMessage(`✓ Generated ${generatedNumbers.length.toLocaleString()} valid unique phone numbers for ${state}${filterMessage}. Carriers: ${selectedCarriers.join(', ')}. Each number includes selected website lookup links for verification.`, 'success');
 
             runBackgroundVerification(state);
         }
 
         // Download as CSV
-        function downloadCSV() {
+        async function downloadCSV() {
             if (generatedNumbers.length === 0) {
                 showMessage('No numbers to download', 'error');
                 return;
             }
 
-            let csv = 'phone_number,state,area_code,requested_carrier,verification_status,source,source_url,allareacodes_url,intelius_url,whitepages_url,wirefly_url\n';
-            generatedNumbers.forEach(num => {
-                csv += `${num.formatted},${currentState},${num.areaCode},${num.requestedCarrier || 'Any'},${num.verificationStatus || 'website_linked'},${num.source || ''},${num.sourceUrl || ''},${num.allAreaCodesUrl || ''},${num.inteliusUrl || ''},${num.whitepagesUrl || ''},${num.wireflyUrl || ''}\n`;
-            });
+            const csvParts = [
+                'phone_number,state,area_code,requested_carrier,verification_status,source,source_url,allareacodes_url,intelius_url,whitepages_url,wirefly_url\n'
+            ];
 
-            const blob = new Blob([csv], { type: 'text/csv' });
+            const chunkSize = 5000;
+            let chunk = '';
+
+            document.getElementById('statStatus').textContent = 'Exporting...';
+            document.getElementById('statStatus').style.color = '#667eea';
+
+            for (let i = 0; i < generatedNumbers.length; i++) {
+                const num = generatedNumbers[i];
+                chunk += `${num.formatted},${currentState},${num.areaCode},${num.requestedCarrier || 'Any'},${num.verificationStatus || 'website_linked'},${num.source || ''},${num.sourceUrl || ''},${num.allAreaCodesUrl || ''},${num.inteliusUrl || ''},${num.whitepagesUrl || ''},${num.wireflyUrl || ''}\n`;
+
+                if ((i + 1) % chunkSize === 0) {
+                    csvParts.push(chunk);
+                    chunk = '';
+                    if ((i + 1) % (chunkSize * 4) === 0) {
+                        document.getElementById('statStatus').textContent = `Export ${Math.round(((i + 1) / generatedNumbers.length) * 100)}%`;
+                        await new Promise(resolve => setTimeout(resolve, 0));
+                    }
+                }
+            }
+
+            if (chunk) {
+                csvParts.push(chunk);
+            }
+
+            const blob = new Blob(csvParts, { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
             link.download = `phone_numbers_${currentState}_${new Date().toISOString().slice(0,10)}.csv`;
             link.click();
             window.URL.revokeObjectURL(url);
+
+            document.getElementById('statStatus').textContent = '✓ Exported';
+            document.getElementById('statStatus').style.color = '#4CAF50';
 
             showMessage(`✓ Downloaded ${generatedNumbers.length.toLocaleString()} phone numbers`, 'success');
         }
@@ -884,7 +1071,16 @@
             document.getElementById('areaCode').value = '';
             document.getElementById('areaCode').disabled = true;
             document.getElementById('count').value = '100';
-            document.getElementById('carrier').value = 'Any';
+            document.getElementById('carrierATT').checked = true;
+            document.getElementById('carrierVerizon').checked = true;
+            document.getElementById('carrierTMobile').checked = true;
+            document.getElementById('carrierSprint').checked = false;
+            document.getElementById('carrierUSCellular').checked = false;
+            document.getElementById('carrierBoost').checked = false;
+            document.getElementById('carrierCricket').checked = false;
+            document.getElementById('carrierMetro').checked = false;
+            document.getElementById('carrierXfinity').checked = false;
+            document.getElementById('carrierNewCingular').checked = false;
             document.getElementById('bgVerifyToggle').checked = true;
             document.getElementById('lookupAllAreaCodes').checked = true;
             document.getElementById('lookupIntelius').checked = true;
@@ -911,6 +1107,8 @@
 
         // Initialize on page load
         window.addEventListener('DOMContentLoaded', initializeStates);
+
+        document.getElementById('count').addEventListener('input', updateCapacityInfo);
 
         // Allow Enter key to generate
         document.getElementById('count').addEventListener('keypress', function(e) {

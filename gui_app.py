@@ -2,8 +2,9 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from tkinter import scrolledtext
 import threading
+import csv
+import time
 from us_phone_generator import USPhoneNumberGenerator
-import os
 
 class PhoneGeneratorApp:
     def __init__(self, root):
@@ -39,13 +40,50 @@ class PhoneGeneratorApp:
         self.count_var = tk.StringVar(value="100")
         count_entry = ttk.Entry(main_frame, textvariable=self.count_var, width=35)
         count_entry.grid(row=2, column=1, sticky="ew", padx=5)
+
+        # Carrier selection (multi-select)
+        ttk.Label(main_frame, text="Carrier Selection:", font=("Helvetica", 11)).grid(row=3, column=0, sticky=tk.W, pady=5)
+        carrier_frame = ttk.Frame(main_frame)
+        carrier_frame.grid(row=3, column=1, sticky="ew", padx=5)
+
+        self.carrier_names = [
+            "AT&T",
+            "Verizon",
+            "T-Mobile",
+            "Sprint",
+            "US Cellular",
+            "Boost Mobile",
+            "Cricket Wireless",
+            "Metro by T-Mobile",
+            "Xfinity Mobile",
+            "NEW CINGULAR WIRELESS PCS",
+        ]
+        self.carrier_vars = {
+            "AT&T": tk.BooleanVar(value=True),
+            "Verizon": tk.BooleanVar(value=True),
+            "T-Mobile": tk.BooleanVar(value=True),
+            "Sprint": tk.BooleanVar(value=False),
+            "US Cellular": tk.BooleanVar(value=False),
+            "Boost Mobile": tk.BooleanVar(value=False),
+            "Cricket Wireless": tk.BooleanVar(value=False),
+            "Metro by T-Mobile": tk.BooleanVar(value=False),
+            "Xfinity Mobile": tk.BooleanVar(value=False),
+            "NEW CINGULAR WIRELESS PCS": tk.BooleanVar(value=False),
+        }
+
+        for idx, carrier in enumerate(self.carrier_names):
+            ttk.Checkbutton(
+                carrier_frame,
+                text=carrier,
+                variable=self.carrier_vars[carrier],
+            ).grid(row=idx // 3, column=idx % 3, sticky=tk.W, padx=(0, 10), pady=2)
         
         # Buttons frame
         btn_frame = ttk.Frame(main_frame)
-        btn_frame.grid(row=3, column=0, columnspan=2, pady=15)
+        btn_frame.grid(row=4, column=0, columnspan=2, pady=15)
         
-        ttk.Button(btn_frame, text="Generate Numbers", 
-                  command=self.generate_numbers).pack(side=tk.LEFT, padx=5)
+        self.generate_btn = ttk.Button(btn_frame, text="Generate Numbers", command=self.generate_numbers)
+        self.generate_btn.pack(side=tk.LEFT, padx=5)
         ttk.Button(btn_frame, text="Save to CSV", 
                   command=self.save_to_csv).pack(side=tk.LEFT, padx=5)
         ttk.Button(btn_frame, text="Clear", 
@@ -53,22 +91,73 @@ class PhoneGeneratorApp:
         
         # Progress label
         self.progress_label = ttk.Label(main_frame, text="", font=("Helvetica", 10))
-        self.progress_label.grid(row=4, column=0, columnspan=2, pady=5)
+        self.progress_label.grid(row=5, column=0, columnspan=2, pady=5)
+
+        self.progress_bar = ttk.Progressbar(main_frame, mode="determinate", maximum=100)
+        self.progress_bar.grid(row=6, column=0, columnspan=2, sticky="ew", padx=5, pady=(0, 8))
         
         # Text display area
-        ttk.Label(main_frame, text="Generated Numbers:", font=("Helvetica", 11)).grid(row=5, column=0, columnspan=2, sticky=tk.W, pady=(10, 5))
+        ttk.Label(main_frame, text="Generated Numbers:", font=("Helvetica", 11)).grid(row=7, column=0, columnspan=2, sticky=tk.W, pady=(10, 5))
         
         self.text_area = scrolledtext.ScrolledText(main_frame, height=25, width=80, wrap=tk.WORD)
-        self.text_area.grid(row=6, column=0, columnspan=2, sticky="nsew", padx=5, pady=5)
+        self.text_area.grid(row=8, column=0, columnspan=2, sticky="nsew", padx=5, pady=5)
         
         # Configure grid weights
         root.columnconfigure(0, weight=1)
         root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(1, weight=1)
-        main_frame.rowconfigure(6, weight=1)
+        main_frame.rowconfigure(8, weight=1)
         
         self.generated_numbers = []
+        self.generated_rows = []
         self.selected_state = None
+        self.selected_carriers = []
+
+    def get_selected_carriers(self):
+        return [carrier for carrier in self.carrier_names if self.carrier_vars[carrier].get()]
+
+    def _on_generate_success(self, state, numbers, rows):
+        self.generated_numbers = numbers
+        self.generated_rows = rows
+        self.selected_state = state
+
+        output = (
+            f"Generated {len(self.generated_numbers)} phone numbers for {state} "
+            f"(Carriers: {', '.join(self.selected_carriers)})\n"
+        )
+        output += "=" * 60 + "\n\n"
+
+        for i, row in enumerate(self.generated_rows, 1):
+            num = row["number"]
+            carrier = row["carrier"]
+            formatted = f"{num[:3]}-{num[3:6]}-{num[6:]}"
+            output += f"{i}. {formatted} | carrier: {carrier}\n"
+            if i % 50 == 0:
+                output += "\n"
+
+        self.text_area.config(state=tk.NORMAL)
+        self.text_area.delete(1.0, tk.END)
+        self.text_area.insert(1.0, output)
+        self.text_area.config(state=tk.NORMAL)
+        self.progress_bar["value"] = 100
+        self.progress_label.config(text=f"✓ Generated {len(self.generated_numbers)} numbers successfully")
+        self.generate_btn.config(state=tk.NORMAL)
+
+    def _on_generate_error(self, error_text):
+        messagebox.showerror("Error", error_text)
+        self.progress_label.config(text="Error generating numbers")
+        self.progress_bar["value"] = 0
+        self.generate_btn.config(state=tk.NORMAL)
+
+    def _on_generate_progress(self, attempts, generated, target, started_at):
+        progress_pct = (generated / max(1, target)) * 100
+        self.progress_bar["value"] = progress_pct
+        elapsed = max(0.001, time.time() - started_at)
+        rate = generated / elapsed
+        eta = int((target - generated) / rate) if rate > 0 else 0
+        self.progress_label.config(
+            text=f"Generating... {generated:,}/{target:,} ({progress_pct:.1f}%) | ETA ~{eta}s"
+        )
     
     def generate_numbers(self):
         state = self.state_var.get()
@@ -81,39 +170,55 @@ class PhoneGeneratorApp:
             if count <= 0:
                 messagebox.showerror("Error", "Please enter a positive number")
                 return
+            if count > 1_000_000:
+                messagebox.showerror("Error", "Please enter a number up to 1,000,000")
+                return
         except ValueError:
             messagebox.showerror("Error", "Invalid number format")
             return
         
         # Disable button and show progress
+        self.selected_carriers = self.get_selected_carriers()
+        if not self.selected_carriers:
+            messagebox.showerror("Error", "Please select at least one carrier")
+            return
+
+        self.generate_btn.config(state=tk.DISABLED)
+        self.progress_bar["value"] = 0
         self.progress_label.config(text=f"Generating {count} numbers for {state}...")
         self.root.update()
         
         # Run generation in a separate thread to prevent freezing
         def generate():
             try:
-                self.generated_numbers = USPhoneNumberGenerator.generate_numbers(state, count)
-                self.selected_state = state
-                
-                # Format output
-                output = f"Generated {len(self.generated_numbers)} phone numbers for {state}\n"
-                output += "=" * 60 + "\n\n"
-                
-                for i, num in enumerate(self.generated_numbers, 1):
-                    formatted = f"{num[:3]}-{num[3:6]}-{num[6:]}"
-                    output += f"{i}. {formatted}\n"
-                    if i % 50 == 0:  # Add a blank line every 50 numbers
-                        output += "\n"
-                
-                self.text_area.config(state=tk.NORMAL)
-                self.text_area.delete(1.0, tk.END)
-                self.text_area.insert(1.0, output)
-                self.text_area.config(state=tk.NORMAL)
-                
-                self.progress_label.config(text=f"✓ Generated {len(self.generated_numbers)} numbers successfully")
+                started_at = time.time()
+
+                def progress_cb(attempts, generated, target):
+                    self.root.after(
+                        0,
+                        lambda: self._on_generate_progress(
+                            attempts=attempts,
+                            generated=generated,
+                            target=target,
+                            started_at=started_at,
+                        ),
+                    )
+
+                generated_numbers = USPhoneNumberGenerator.generate_numbers(
+                    state,
+                    count,
+                    progress_callback=progress_cb,
+                )
+                generated_rows = [
+                    {
+                        "number": num,
+                        "carrier": self.selected_carriers[idx % len(self.selected_carriers)],
+                    }
+                    for idx, num in enumerate(generated_numbers)
+                ]
+                self.root.after(0, lambda: self._on_generate_success(state, generated_numbers, generated_rows))
             except Exception as e:
-                messagebox.showerror("Error", str(e))
-                self.progress_label.config(text="Error generating numbers")
+                self.root.after(0, lambda: self._on_generate_error(str(e)))
         
         thread = threading.Thread(target=generate, daemon=True)
         thread.start()
@@ -138,17 +243,22 @@ class PhoneGeneratorApp:
             return
         
         try:
-            csv_content = USPhoneNumberGenerator.export_to_csv(
-                self.selected_state, 
-                self.generated_numbers,
-                os.path.basename(file_path)
-            )
-            
             with open(file_path, 'w', newline='') as f:
-                f.write(csv_content)
+                writer = csv.writer(f)
+                writer.writerow(["phone_number", "state", "area_code", "requested_carrier"])
+                for row in self.generated_rows:
+                    number = row["number"]
+                    writer.writerow([
+                        f"{number[:3]}-{number[3:6]}-{number[6:]}",
+                        self.selected_state,
+                        number[:3],
+                        row["carrier"],
+                    ])
             
             messagebox.showinfo("Success", f"File saved successfully!\n{file_path}")
-            self.progress_label.config(text=f"✓ Saved {len(self.generated_numbers)} numbers to CSV")
+            self.progress_label.config(
+                text=f"✓ Saved {len(self.generated_numbers)} numbers to CSV"
+            )
         except Exception as e:
             messagebox.showerror("Error", f"Failed to save file: {str(e)}")
     
@@ -156,8 +266,21 @@ class PhoneGeneratorApp:
         self.text_area.config(state=tk.NORMAL)
         self.text_area.delete(1.0, tk.END)
         self.generated_numbers = []
+        self.generated_rows = []
         self.selected_state = None
+        self.selected_carriers = []
+        self.carrier_vars["AT&T"].set(True)
+        self.carrier_vars["Verizon"].set(True)
+        self.carrier_vars["T-Mobile"].set(True)
+        self.carrier_vars["Sprint"].set(False)
+        self.carrier_vars["US Cellular"].set(False)
+        self.carrier_vars["Boost Mobile"].set(False)
+        self.carrier_vars["Cricket Wireless"].set(False)
+        self.carrier_vars["Metro by T-Mobile"].set(False)
+        self.carrier_vars["Xfinity Mobile"].set(False)
+        self.carrier_vars["NEW CINGULAR WIRELESS PCS"].set(False)
         self.progress_label.config(text="")
+        self.progress_bar["value"] = 0
 
 
 def main():

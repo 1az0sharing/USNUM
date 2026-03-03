@@ -2,7 +2,8 @@ import secrets
 import csv
 import io
 import os
-from typing import List, Dict, Optional
+import json
+from typing import List, Dict, Optional, Callable
 from datetime import datetime
 from pathlib import Path
 
@@ -79,12 +80,70 @@ VALID_NXX = [
     if str(i).zfill(3) not in N11_CODES and str(i).zfill(3) not in EXCLUDED_NXX
 ]
 
+USED_NUMBERS_FILE = Path(".used_numbers.json")
+USED_NUMBERS_HISTORY_FILE = Path("used_numbers_history.csv")
+
 
 def is_reserved_line_number(line_number: str) -> bool:
     for minimum, maximum in RESERVED_LINE_RANGES:
         if minimum <= line_number <= maximum:
             return True
     return False
+
+
+def _load_used_numbers() -> Dict[str, List[str]]:
+    if not USED_NUMBERS_FILE.exists():
+        return {}
+    try:
+        with open(USED_NUMBERS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, dict):
+            return {
+                str(state).upper(): [str(num) for num in numbers]
+                for state, numbers in data.items()
+                if isinstance(numbers, list)
+            }
+    except Exception:
+        return {}
+    return {}
+
+
+def _save_used_numbers(data: Dict[str, List[str]]) -> None:
+    with open(USED_NUMBERS_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False)
+
+
+def _append_used_numbers_history(state: str, numbers: List[str]) -> None:
+    is_new_file = not USED_NUMBERS_HISTORY_FILE.exists()
+    timestamp = datetime.now().isoformat(timespec="seconds")
+    with open(USED_NUMBERS_HISTORY_FILE, "a", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        if is_new_file:
+            writer.writerow(["timestamp", "state", "phone_number", "area_code"])
+        for number in numbers:
+            writer.writerow([
+                timestamp,
+                state,
+                f"{number[:3]}-{number[3:6]}-{number[6:]}",
+                number[:3],
+            ])
+
+
+def register_generated_numbers(state: str, numbers: List[str]) -> None:
+    if not numbers:
+        return
+    state_upper = state.upper()
+    used_data = _load_used_numbers()
+    existing = set(used_data.get(state_upper, []))
+    existing.update(numbers)
+    used_data[state_upper] = sorted(existing)
+    _save_used_numbers(used_data)
+    _append_used_numbers_history(state_upper, numbers)
+
+
+def get_used_numbers_for_state(state: str) -> set:
+    used_data = _load_used_numbers()
+    return set(used_data.get(state.upper(), []))
 
 class USPhoneNumberGenerator:
     """Generate valid NANP phone numbers for US states"""
@@ -117,7 +176,11 @@ class USPhoneNumberGenerator:
             return f"{area_code}{nxx}{line_number}"
     
     @staticmethod
-    def generate_numbers(state: str, count: int) -> List[str]:
+    def generate_numbers(
+        state: str,
+        count: int,
+        progress_callback: Optional[Callable[[int, int, int], None]] = None,
+    ) -> List[str]:
         """Generate multiple valid phone numbers for a state"""
         if count <= 0:
             raise ValueError("Count must be positive")
@@ -126,15 +189,32 @@ class USPhoneNumberGenerator:
         if state_upper not in US_AREA_CODES:
             raise ValueError(f"Invalid state: {state}")
         
+        used_numbers = get_used_numbers_for_state(state_upper)
         numbers = set()
         attempts = 0
-        max_attempts = count * 10
+        max_attempts = max(count * 30, 10000)
         
         while len(numbers) < count and attempts < max_attempts:
-            numbers.add(USPhoneNumberGenerator.generate_single_number(state))
+            candidate = USPhoneNumberGenerator.generate_single_number(state)
+            if candidate in used_numbers or candidate in numbers:
+                attempts += 1
+                if progress_callback and (attempts % 5000 == 0):
+                    progress_callback(attempts, len(numbers), count)
+                continue
+            numbers.add(candidate)
             attempts += 1
-        
-        return sorted(list(numbers))[:count]
+            if progress_callback and (attempts % 5000 == 0 or len(numbers) == count):
+                progress_callback(attempts, len(numbers), count)
+
+        if len(numbers) < count:
+            raise ValueError(
+                "Could not generate enough unique numbers. "
+                "Try a smaller count or clear used-number history."
+            )
+
+        generated = sorted(list(numbers))[:count]
+        register_generated_numbers(state_upper, generated)
+        return generated
     
     @staticmethod
     def export_to_csv(state: str, numbers: List[str], filename: Optional[str] = None) -> str:
