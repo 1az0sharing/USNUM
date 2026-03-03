@@ -311,8 +311,8 @@
 
         <div class="form-group">
             <label for="count">Number of Phone Numbers:</label>
-            <input type="number" id="count" placeholder="Enter count (e.g., 100, 1000, 10000)" min="1" max="1000000" value="100">
-            <div class="states-info">Supports unlimited generation up to 1,000,000</div>
+            <input type="number" id="count" placeholder="Enter count (e.g., 100, 1000, 10000)" min="1" max="5000000" value="100">
+            <div class="states-info">Supports high-volume generation up to 5,000,000</div>
         </div>
 
         <div class="form-group">
@@ -509,6 +509,7 @@
         let filteredCount = 0;
         let selectedAreaCode = null;
         let verificationRunId = 0;
+        const USED_NUMBERS_STORAGE_KEY = 'usnum_used_numbers_v1';
         const LOOKUP_WEBSITE_ALLAREACODES = 'https://www.allareacodes.com';
         const LOOKUP_WEBSITE_INTELIUS = 'https://www.intelius.com/reverse-phone-lookup';
         const LOOKUP_WEBSITE_WHITEPAGES = 'https://www.whitepages.com/phone';
@@ -547,6 +548,38 @@
             if (document.getElementById('carrierMetro').checked) selected.push('Metro by T-Mobile');
             if (document.getElementById('carrierXfinity').checked) selected.push('Xfinity Mobile');
             return selected;
+        }
+
+        function loadUsedNumbersMap() {
+            try {
+                const raw = localStorage.getItem(USED_NUMBERS_STORAGE_KEY);
+                const parsed = raw ? JSON.parse(raw) : {};
+                return parsed && typeof parsed === 'object' ? parsed : {};
+            } catch (_) {
+                return {};
+            }
+        }
+
+        function saveUsedNumbersMap(map) {
+            localStorage.setItem(USED_NUMBERS_STORAGE_KEY, JSON.stringify(map));
+        }
+
+        function isPreviouslyUsed(state, rawNumber, usedMap) {
+            const stateKey = String(state || '').toUpperCase();
+            const list = Array.isArray(usedMap[stateKey]) ? usedMap[stateKey] : [];
+            return list.includes(rawNumber);
+        }
+
+        function markAsUsed(state, rows, usedMap) {
+            const stateKey = String(state || '').toUpperCase();
+            const existing = new Set(Array.isArray(usedMap[stateKey]) ? usedMap[stateKey] : []);
+            rows.forEach(row => {
+                if (row && row.raw) {
+                    existing.add(row.raw);
+                }
+            });
+            usedMap[stateKey] = Array.from(existing);
+            saveUsedNumbersMap(usedMap);
         }
 
         // Initialize state dropdown
@@ -786,8 +819,8 @@
                 return;
             }
 
-            if (!count || count <= 0 || count > 1000000) {
-                showMessage('Please enter a number between 1 and 1,000,000', 'error');
+            if (!count || count <= 0 || count > 5000000) {
+                showMessage('Please enter a number between 1 and 5,000,000', 'error');
                 return;
             }
 
@@ -819,11 +852,18 @@
             progressFill.style.width = '0%';
 
             let attempts = 0;
-            const maxAttempts = count * 2;
+            const maxAttempts = Math.max(count * 40, 10000);
+            const usedMap = loadUsedNumbersMap();
 
             while (generatedNumbers.length < count && attempts < maxAttempts) {
                 const number = generateSingleNumber(state);
                 if (number) {
+                    if (isPreviouslyUsed(state, number.raw, usedMap)) {
+                        filteredCount++;
+                        attempts++;
+                        continue;
+                    }
+
                     const sourceNames = [];
                     const sourceUrls = [];
 
@@ -885,10 +925,11 @@
             document.getElementById('statStatus').style.color = '#4CAF50';
 
             renderGeneratedOutput();
+            markAsUsed(state, generatedNumbers, usedMap);
 
             document.getElementById('downloadBtn').disabled = generatedNumbers.length === 0;
-            const filterMessage = filteredCount > 0 ? ` (filtered ${filteredCount} invalid/business numbers)` : '';
-            showMessage(`✓ Generated ${generatedNumbers.length.toLocaleString()} valid phone numbers for ${state}${filterMessage}. Carriers: ${selectedCarriers.join(', ')}. Each number includes selected website lookup links for verification.`, 'success');
+            const filterMessage = filteredCount > 0 ? ` (filtered ${filteredCount} invalid/business/previously-used numbers)` : '';
+            showMessage(`✓ Generated ${generatedNumbers.length.toLocaleString()} valid unique phone numbers for ${state}${filterMessage}. Carriers: ${selectedCarriers.join(', ')}. Each number includes selected website lookup links for verification.`, 'success');
 
             runBackgroundVerification(state);
         }
