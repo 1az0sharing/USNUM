@@ -3,6 +3,7 @@ from tkinter import ttk, filedialog, messagebox
 from tkinter import scrolledtext
 import threading
 import csv
+import time
 from us_phone_generator import USPhoneNumberGenerator
 
 class PhoneGeneratorApp:
@@ -91,18 +92,21 @@ class PhoneGeneratorApp:
         # Progress label
         self.progress_label = ttk.Label(main_frame, text="", font=("Helvetica", 10))
         self.progress_label.grid(row=5, column=0, columnspan=2, pady=5)
+
+        self.progress_bar = ttk.Progressbar(main_frame, mode="determinate", maximum=100)
+        self.progress_bar.grid(row=6, column=0, columnspan=2, sticky="ew", padx=5, pady=(0, 8))
         
         # Text display area
-        ttk.Label(main_frame, text="Generated Numbers:", font=("Helvetica", 11)).grid(row=6, column=0, columnspan=2, sticky=tk.W, pady=(10, 5))
+        ttk.Label(main_frame, text="Generated Numbers:", font=("Helvetica", 11)).grid(row=7, column=0, columnspan=2, sticky=tk.W, pady=(10, 5))
         
         self.text_area = scrolledtext.ScrolledText(main_frame, height=25, width=80, wrap=tk.WORD)
-        self.text_area.grid(row=7, column=0, columnspan=2, sticky="nsew", padx=5, pady=5)
+        self.text_area.grid(row=8, column=0, columnspan=2, sticky="nsew", padx=5, pady=5)
         
         # Configure grid weights
         root.columnconfigure(0, weight=1)
         root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(1, weight=1)
-        main_frame.rowconfigure(7, weight=1)
+        main_frame.rowconfigure(8, weight=1)
         
         self.generated_numbers = []
         self.generated_rows = []
@@ -135,13 +139,25 @@ class PhoneGeneratorApp:
         self.text_area.delete(1.0, tk.END)
         self.text_area.insert(1.0, output)
         self.text_area.config(state=tk.NORMAL)
+        self.progress_bar["value"] = 100
         self.progress_label.config(text=f"✓ Generated {len(self.generated_numbers)} numbers successfully")
         self.generate_btn.config(state=tk.NORMAL)
 
     def _on_generate_error(self, error_text):
         messagebox.showerror("Error", error_text)
         self.progress_label.config(text="Error generating numbers")
+        self.progress_bar["value"] = 0
         self.generate_btn.config(state=tk.NORMAL)
+
+    def _on_generate_progress(self, attempts, generated, target, started_at):
+        progress_pct = (generated / max(1, target)) * 100
+        self.progress_bar["value"] = progress_pct
+        elapsed = max(0.001, time.time() - started_at)
+        rate = generated / elapsed
+        eta = int((target - generated) / rate) if rate > 0 else 0
+        self.progress_label.config(
+            text=f"Generating... {generated:,}/{target:,} ({progress_pct:.1f}%) | ETA ~{eta}s"
+        )
     
     def generate_numbers(self):
         state = self.state_var.get()
@@ -168,13 +184,31 @@ class PhoneGeneratorApp:
             return
 
         self.generate_btn.config(state=tk.DISABLED)
+        self.progress_bar["value"] = 0
         self.progress_label.config(text=f"Generating {count} numbers for {state}...")
         self.root.update()
         
         # Run generation in a separate thread to prevent freezing
         def generate():
             try:
-                generated_numbers = USPhoneNumberGenerator.generate_numbers(state, count)
+                started_at = time.time()
+
+                def progress_cb(attempts, generated, target):
+                    self.root.after(
+                        0,
+                        lambda: self._on_generate_progress(
+                            attempts=attempts,
+                            generated=generated,
+                            target=target,
+                            started_at=started_at,
+                        ),
+                    )
+
+                generated_numbers = USPhoneNumberGenerator.generate_numbers(
+                    state,
+                    count,
+                    progress_callback=progress_cb,
+                )
                 generated_rows = [
                     {
                         "number": num,
@@ -246,6 +280,7 @@ class PhoneGeneratorApp:
         self.carrier_vars["Xfinity Mobile"].set(False)
         self.carrier_vars["NEW CINGULAR WIRELESS PCS"].set(False)
         self.progress_label.config(text="")
+        self.progress_bar["value"] = 0
 
 
 def main():

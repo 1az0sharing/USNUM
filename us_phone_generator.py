@@ -3,7 +3,7 @@ import csv
 import io
 import os
 import json
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Callable
 from datetime import datetime
 from pathlib import Path
 
@@ -176,7 +176,11 @@ class USPhoneNumberGenerator:
             return f"{area_code}{nxx}{line_number}"
     
     @staticmethod
-    def generate_numbers(state: str, count: int) -> List[str]:
+    def generate_numbers(
+        state: str,
+        count: int,
+        progress_callback: Optional[Callable[[int, int, int], None]] = None,
+    ) -> List[str]:
         """Generate multiple valid phone numbers for a state"""
         if count <= 0:
             raise ValueError("Count must be positive")
@@ -194,9 +198,13 @@ class USPhoneNumberGenerator:
             candidate = USPhoneNumberGenerator.generate_single_number(state)
             if candidate in used_numbers or candidate in numbers:
                 attempts += 1
+                if progress_callback and (attempts % 5000 == 0):
+                    progress_callback(attempts, len(numbers), count)
                 continue
             numbers.add(candidate)
             attempts += 1
+            if progress_callback and (attempts % 5000 == 0 or len(numbers) == count):
+                progress_callback(attempts, len(numbers), count)
 
         if len(numbers) < count:
             raise ValueError(

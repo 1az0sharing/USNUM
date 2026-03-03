@@ -855,6 +855,8 @@
             const progressFill = document.getElementById('progressFill');
             progressBar.classList.add('active');
             progressFill.style.width = '0%';
+            document.getElementById('statStatus').textContent = 'Generating...';
+            document.getElementById('statStatus').style.color = '#667eea';
 
             let attempts = 0;
             const maxAttempts = Math.max(count * 40, 10000);
@@ -915,8 +917,14 @@
                 }
                 attempts++;
 
-                if (attempts % Math.max(1, Math.floor(count / 20)) === 0 || generatedNumbers.length === count) {
-                    progressFill.style.width = ((generatedNumbers.length) / count * 100) + '%';
+                if (attempts % 1000 === 0 || generatedNumbers.length === count) {
+                    const progressPct = (generatedNumbers.length / count) * 100;
+                    progressFill.style.width = `${progressPct}%`;
+                    const elapsedSec = Math.max(0.001, (performance.now() - startTime) / 1000);
+                    const rate = generatedNumbers.length / elapsedSec;
+                    const etaSec = rate > 0 ? Math.max(0, Math.round((count - generatedNumbers.length) / rate)) : 0;
+                    document.getElementById('statStatus').textContent = `Gen ${progressPct.toFixed(1)}% | ETA ~${etaSec}s`;
+                    await new Promise(resolve => setTimeout(resolve, 0));
                 }
             }
 
