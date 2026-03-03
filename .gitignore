@@ -1,3 +1,9 @@
 .env
 __pycache__/
 *.pyc
+.used_numbers.json
+used_numbers_history.csv
+USNUM-latest.zip
+Version*.zip
+test_input.csv
+test_output.csv
