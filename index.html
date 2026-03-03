@@ -311,8 +311,8 @@
 
         <div class="form-group">
             <label for="count">Number of Phone Numbers:</label>
-            <input type="number" id="count" placeholder="Enter count (e.g., 100, 1000, 10000)" min="1" max="5000000" value="100">
-            <div class="states-info">Supports high-volume generation up to 5,000,000</div>
+            <input type="number" id="count" placeholder="Enter count (e.g., 100, 1000, 10000)" min="1" max="1000000" value="100">
+            <div class="states-info">Supports high-volume generation up to 1,000,000</div>
         </div>
 
         <div class="form-group">
@@ -352,6 +352,10 @@
             <label for="carrierXfinity" style="display:flex; align-items:center; gap:8px; font-weight:500; margin-bottom:0;">
                 <input type="checkbox" id="carrierXfinity" style="width:auto;">
                 Xfinity Mobile
+            </label>
+            <label for="carrierNewCingular" style="display:flex; align-items:center; gap:8px; font-weight:500; margin-bottom:0; margin-top:6px;">
+                <input type="checkbox" id="carrierNewCingular" style="width:auto;">
+                NEW CINGULAR WIRELESS PCS
             </label>
             <div class="states-info">Each generated number is tagged with one selected carrier (round-robin assignment).</div>
         </div>
@@ -547,6 +551,7 @@
             if (document.getElementById('carrierCricket').checked) selected.push('Cricket Wireless');
             if (document.getElementById('carrierMetro').checked) selected.push('Metro by T-Mobile');
             if (document.getElementById('carrierXfinity').checked) selected.push('Xfinity Mobile');
+            if (document.getElementById('carrierNewCingular').checked) selected.push('NEW CINGULAR WIRELESS PCS');
             return selected;
         }
 
@@ -819,8 +824,8 @@
                 return;
             }
 
-            if (!count || count <= 0 || count > 5000000) {
-                showMessage('Please enter a number between 1 and 5,000,000', 'error');
+            if (!count || count <= 0 || count > 1000000) {
+                showMessage('Please enter a number between 1 and 1,000,000', 'error');
                 return;
             }
 
@@ -935,24 +940,50 @@
         }
 
         // Download as CSV
-        function downloadCSV() {
+        async function downloadCSV() {
             if (generatedNumbers.length === 0) {
                 showMessage('No numbers to download', 'error');
                 return;
             }
 
-            let csv = 'phone_number,state,area_code,requested_carrier,verification_status,source,source_url,allareacodes_url,intelius_url,whitepages_url,wirefly_url\n';
-            generatedNumbers.forEach(num => {
-                csv += `${num.formatted},${currentState},${num.areaCode},${num.requestedCarrier || 'Any'},${num.verificationStatus || 'website_linked'},${num.source || ''},${num.sourceUrl || ''},${num.allAreaCodesUrl || ''},${num.inteliusUrl || ''},${num.whitepagesUrl || ''},${num.wireflyUrl || ''}\n`;
-            });
+            const csvParts = [
+                'phone_number,state,area_code,requested_carrier,verification_status,source,source_url,allareacodes_url,intelius_url,whitepages_url,wirefly_url\n'
+            ];
 
-            const blob = new Blob([csv], { type: 'text/csv' });
+            const chunkSize = 5000;
+            let chunk = '';
+
+            document.getElementById('statStatus').textContent = 'Exporting...';
+            document.getElementById('statStatus').style.color = '#667eea';
+
+            for (let i = 0; i < generatedNumbers.length; i++) {
+                const num = generatedNumbers[i];
+                chunk += `${num.formatted},${currentState},${num.areaCode},${num.requestedCarrier || 'Any'},${num.verificationStatus || 'website_linked'},${num.source || ''},${num.sourceUrl || ''},${num.allAreaCodesUrl || ''},${num.inteliusUrl || ''},${num.whitepagesUrl || ''},${num.wireflyUrl || ''}\n`;
+
+                if ((i + 1) % chunkSize === 0) {
+                    csvParts.push(chunk);
+                    chunk = '';
+                    if ((i + 1) % (chunkSize * 4) === 0) {
+                        document.getElementById('statStatus').textContent = `Export ${Math.round(((i + 1) / generatedNumbers.length) * 100)}%`;
+                        await new Promise(resolve => setTimeout(resolve, 0));
+                    }
+                }
+            }
+
+            if (chunk) {
+                csvParts.push(chunk);
+            }
+
+            const blob = new Blob(csvParts, { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
             link.download = `phone_numbers_${currentState}_${new Date().toISOString().slice(0,10)}.csv`;
             link.click();
             window.URL.revokeObjectURL(url);
+
+            document.getElementById('statStatus').textContent = '✓ Exported';
+            document.getElementById('statStatus').style.color = '#4CAF50';
 
             showMessage(`✓ Downloaded ${generatedNumbers.length.toLocaleString()} phone numbers`, 'success');
         }
@@ -977,6 +1008,7 @@
             document.getElementById('carrierCricket').checked = false;
             document.getElementById('carrierMetro').checked = false;
             document.getElementById('carrierXfinity').checked = false;
+            document.getElementById('carrierNewCingular').checked = false;
             document.getElementById('bgVerifyToggle').checked = true;
             document.getElementById('lookupAllAreaCodes').checked = true;
             document.getElementById('lookupIntelius').checked = true;

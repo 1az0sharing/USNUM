@@ -55,6 +55,7 @@ class PhoneGeneratorApp:
             "Cricket Wireless",
             "Metro by T-Mobile",
             "Xfinity Mobile",
+            "NEW CINGULAR WIRELESS PCS",
         ]
         self.carrier_vars = {
             "AT&T": tk.BooleanVar(value=True),
@@ -66,6 +67,7 @@ class PhoneGeneratorApp:
             "Cricket Wireless": tk.BooleanVar(value=False),
             "Metro by T-Mobile": tk.BooleanVar(value=False),
             "Xfinity Mobile": tk.BooleanVar(value=False),
+            "NEW CINGULAR WIRELESS PCS": tk.BooleanVar(value=False),
         }
 
         for idx, carrier in enumerate(self.carrier_names):
@@ -79,8 +81,8 @@ class PhoneGeneratorApp:
         btn_frame = ttk.Frame(main_frame)
         btn_frame.grid(row=4, column=0, columnspan=2, pady=15)
         
-        ttk.Button(btn_frame, text="Generate Numbers", 
-                  command=self.generate_numbers).pack(side=tk.LEFT, padx=5)
+        self.generate_btn = ttk.Button(btn_frame, text="Generate Numbers", command=self.generate_numbers)
+        self.generate_btn.pack(side=tk.LEFT, padx=5)
         ttk.Button(btn_frame, text="Save to CSV", 
                   command=self.save_to_csv).pack(side=tk.LEFT, padx=5)
         ttk.Button(btn_frame, text="Clear", 
@@ -109,6 +111,37 @@ class PhoneGeneratorApp:
 
     def get_selected_carriers(self):
         return [carrier for carrier in self.carrier_names if self.carrier_vars[carrier].get()]
+
+    def _on_generate_success(self, state, numbers, rows):
+        self.generated_numbers = numbers
+        self.generated_rows = rows
+        self.selected_state = state
+
+        output = (
+            f"Generated {len(self.generated_numbers)} phone numbers for {state} "
+            f"(Carriers: {', '.join(self.selected_carriers)})\n"
+        )
+        output += "=" * 60 + "\n\n"
+
+        for i, row in enumerate(self.generated_rows, 1):
+            num = row["number"]
+            carrier = row["carrier"]
+            formatted = f"{num[:3]}-{num[3:6]}-{num[6:]}"
+            output += f"{i}. {formatted} | carrier: {carrier}\n"
+            if i % 50 == 0:
+                output += "\n"
+
+        self.text_area.config(state=tk.NORMAL)
+        self.text_area.delete(1.0, tk.END)
+        self.text_area.insert(1.0, output)
+        self.text_area.config(state=tk.NORMAL)
+        self.progress_label.config(text=f"✓ Generated {len(self.generated_numbers)} numbers successfully")
+        self.generate_btn.config(state=tk.NORMAL)
+
+    def _on_generate_error(self, error_text):
+        messagebox.showerror("Error", error_text)
+        self.progress_label.config(text="Error generating numbers")
+        self.generate_btn.config(state=tk.NORMAL)
     
     def generate_numbers(self):
         state = self.state_var.get()
@@ -121,6 +154,9 @@ class PhoneGeneratorApp:
             if count <= 0:
                 messagebox.showerror("Error", "Please enter a positive number")
                 return
+            if count > 1_000_000:
+                messagebox.showerror("Error", "Please enter a number up to 1,000,000")
+                return
         except ValueError:
             messagebox.showerror("Error", "Invalid number format")
             return
@@ -131,46 +167,24 @@ class PhoneGeneratorApp:
             messagebox.showerror("Error", "Please select at least one carrier")
             return
 
+        self.generate_btn.config(state=tk.DISABLED)
         self.progress_label.config(text=f"Generating {count} numbers for {state}...")
         self.root.update()
         
         # Run generation in a separate thread to prevent freezing
         def generate():
             try:
-                self.generated_numbers = USPhoneNumberGenerator.generate_numbers(state, count)
-                self.selected_state = state
-                self.generated_rows = [
+                generated_numbers = USPhoneNumberGenerator.generate_numbers(state, count)
+                generated_rows = [
                     {
                         "number": num,
                         "carrier": self.selected_carriers[idx % len(self.selected_carriers)],
                     }
-                    for idx, num in enumerate(self.generated_numbers)
+                    for idx, num in enumerate(generated_numbers)
                 ]
-                
-                # Format output
-                output = (
-                    f"Generated {len(self.generated_numbers)} phone numbers for {state} "
-                    f"(Carriers: {', '.join(self.selected_carriers)})\n"
-                )
-                output += "=" * 60 + "\n\n"
-                
-                for i, row in enumerate(self.generated_rows, 1):
-                    num = row["number"]
-                    carrier = row["carrier"]
-                    formatted = f"{num[:3]}-{num[3:6]}-{num[6:]}"
-                    output += f"{i}. {formatted} | carrier: {carrier}\n"
-                    if i % 50 == 0:  # Add a blank line every 50 numbers
-                        output += "\n"
-                
-                self.text_area.config(state=tk.NORMAL)
-                self.text_area.delete(1.0, tk.END)
-                self.text_area.insert(1.0, output)
-                self.text_area.config(state=tk.NORMAL)
-                
-                self.progress_label.config(text=f"✓ Generated {len(self.generated_numbers)} numbers successfully")
+                self.root.after(0, lambda: self._on_generate_success(state, generated_numbers, generated_rows))
             except Exception as e:
-                messagebox.showerror("Error", str(e))
-                self.progress_label.config(text="Error generating numbers")
+                self.root.after(0, lambda: self._on_generate_error(str(e)))
         
         thread = threading.Thread(target=generate, daemon=True)
         thread.start()
@@ -230,6 +244,7 @@ class PhoneGeneratorApp:
         self.carrier_vars["Cricket Wireless"].set(False)
         self.carrier_vars["Metro by T-Mobile"].set(False)
         self.carrier_vars["Xfinity Mobile"].set(False)
+        self.carrier_vars["NEW CINGULAR WIRELESS PCS"].set(False)
         self.progress_label.config(text="")
 
 
