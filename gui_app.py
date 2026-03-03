@@ -18,7 +18,7 @@ class PhoneGeneratorApp:
         
         # Main frame
         main_frame = ttk.Frame(root, padding="10")
-        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        main_frame.grid(row=0, column=0, sticky="nsew")
         
         # Title
         title = ttk.Label(main_frame, text="US Phone Number Generator", 
@@ -32,13 +32,13 @@ class PhoneGeneratorApp:
         states = USPhoneNumberGenerator.get_states()
         state_combo = ttk.Combobox(main_frame, textvariable=self.state_var, 
                                    values=states, state="readonly", width=35)
-        state_combo.grid(row=1, column=1, sticky=(tk.W, tk.E), padx=5)
+        state_combo.grid(row=1, column=1, sticky="ew", padx=5)
         
         # Count input
         ttk.Label(main_frame, text="Number of Entries:", font=("Helvetica", 11)).grid(row=2, column=0, sticky=tk.W, pady=5)
         self.count_var = tk.StringVar(value="100")
         count_entry = ttk.Entry(main_frame, textvariable=self.count_var, width=35)
-        count_entry.grid(row=2, column=1, sticky=(tk.W, tk.E), padx=5)
+        count_entry.grid(row=2, column=1, sticky="ew", padx=5)
         
         # Buttons frame
         btn_frame = ttk.Frame(main_frame)
@@ -59,7 +59,7 @@ class PhoneGeneratorApp:
         ttk.Label(main_frame, text="Generated Numbers:", font=("Helvetica", 11)).grid(row=5, column=0, columnspan=2, sticky=tk.W, pady=(10, 5))
         
         self.text_area = scrolledtext.ScrolledText(main_frame, height=25, width=80, wrap=tk.WORD)
-        self.text_area.grid(row=6, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), padx=5, pady=5)
+        self.text_area.grid(row=6, column=0, columnspan=2, sticky="nsew", padx=5, pady=5)
         
         # Configure grid weights
         root.columnconfigure(0, weight=1)

@@ -2,7 +2,7 @@ import secrets
 import csv
 import io
 import os
-from typing import List, Dict
+from typing import List, Dict, Optional
 from datetime import datetime
 from pathlib import Path
 
@@ -137,7 +137,7 @@ class USPhoneNumberGenerator:
         return sorted(list(numbers))[:count]
     
     @staticmethod
-    def export_to_csv(state: str, numbers: List[str], filename: str = None) -> str:
+    def export_to_csv(state: str, numbers: List[str], filename: Optional[str] = None) -> str:
         """Export phone numbers to CSV file"""
         if filename is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
