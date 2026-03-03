@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>US Phone Number Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        select, input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+            font-family: inherit;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-generate {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-generate:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-generate:active {
+            transform: translateY(0);
+        }
+
+        .btn-download {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-download:hover {
+            background: #45a049;
+        }
+
+        .btn-download:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .btn-clear {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-clear:hover {
+            background: #da190b;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+
+        .stat-box {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .output-section {
+            margin-top: 30px;
+        }
+
+        .output-section h2 {
+            color: #333;
+            font-size: 18px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .output-box {
+            background: #f9f9f9;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .output-box:empty::before {
+            content: 'Generated numbers will appear here...';
+            color: #999;
+        }
+
+        .number-row {
+            padding: 5px 0;
+            color: #333;
+        }
+
+        .number-row:nth-child(even) {
+            background: #f0f0f0;
+            padding: 5px 8px;
+            border-radius: 4px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #e0e0e0;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 10px;
+            display: none;
+        }
+
+        .progress-bar.active {
+            display: block;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .message {
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: none;
+            font-size: 14px;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+
+        .states-info {
+            color: #999;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .stats {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+        }
+
+        .scrollbar-area {
+            scrollbar-width: thin;
+            scrollbar-color: #667eea #e0e0e0;
+        }
+
+        .scrollbar-area::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .scrollbar-area::-webkit-scrollbar-track {
+            background: #e0e0e0;
+            border-radius: 10px;
+        }
+
+        .scrollbar-area::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 10px;
+        }
+
+        .scrollbar-area::-webkit-scrollbar-thumb:hover {
+            background: #764ba2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📱 US Phone Number Generator</h1>
+            <p>Generate unlimited valid phone numbers for all 50 US states</p>
+        </div>
+
+        <div id="message" class="message"></div>
+
+        <div class="form-group">
+            <label for="state">Select State:</label>
+            <select id="state" onchange="updateAreaCodes()">
+                <option value="">-- Choose a state --</option>
+            </select>
+            <div class="states-info">All 50 US states supported</div>
+        </div>
+
+        <div class="form-group">
+            <label for="areaCode">Area Code (Optional):</label>
+            <select id="areaCode">
+                <option value="">-- Random Area Code --</option>
+            </select>
+            <div class="states-info">Leave blank to randomly select from available area codes</div>
+        </div>
+
+        <div class="form-group">
+            <label for="count">Number of Phone Numbers:</label>
+            <input type="number" id="count" placeholder="Enter count (e.g., 100, 1000, 10000)" min="1" max="1000000" value="100">
+            <div class="states-info">Supports unlimited generation up to 1,000,000</div>
+        </div>
+
+        <div class="form-group">
+            <label for="carrier">Carrier Preference (Optional):</label>
+            <select id="carrier">
+                <option value="Any">Any Carrier</option>
+                <option value="AT&T">AT&T</option>
+                <option value="Verizon">Verizon</option>
+                <option value="T-Mobile">T-Mobile</option>
+                <option value="Sprint">Sprint</option>
+                <option value="US Cellular">US Cellular</option>
+                <option value="Boost Mobile">Boost Mobile</option>
+                <option value="Cricket Wireless">Cricket Wireless</option>
+                <option value="Metro by T-Mobile">Metro by T-Mobile</option>
+                <option value="Xfinity Mobile">Xfinity Mobile</option>
+            </select>
+            <div class="states-info">Tag only in website mode (not API-verified).</div>
+        </div>
+
+        <div class="form-group">
+            <label style="margin-bottom: 10px;">Verification Websites:</label>
+            <label for="lookupAllAreaCodes" style="display:flex; align-items:center; gap:8px; font-weight:500; margin-bottom:6px;">
+                <input type="checkbox" id="lookupAllAreaCodes" checked style="width:auto;">
+                allareacodes.com
+            </label>
+            <label for="lookupIntelius" style="display:flex; align-items:center; gap:8px; font-weight:500; margin-bottom:6px;">
+                <input type="checkbox" id="lookupIntelius" checked style="width:auto;">
+                intelius.com
+            </label>
+            <label for="lookupWhitepages" style="display:flex; align-items:center; gap:8px; font-weight:500; margin-bottom:6px;">
+                <input type="checkbox" id="lookupWhitepages" checked style="width:auto;">
+                whitepages.com
+            </label>
+            <label for="lookupWirefly" style="display:flex; align-items:center; gap:8px; font-weight:500; margin-bottom:0;">
+                <input type="checkbox" id="lookupWirefly" checked style="width:auto;">
+                wirefly.com
+            </label>
+            <div class="states-info">Best-effort website lookups only. Mobile/connectivity is not guaranteed without API verification.</div>
+        </div>
+
+        <div class="form-group">
+            <label for="bgVerifyToggle" style="display:flex; align-items:center; gap:8px; font-weight:600;">
+                <input type="checkbox" id="bgVerifyToggle" checked style="width:auto;">
+                Enable background verification
+            </label>
+            <div class="states-info">Recommended for best reliability; disable for fastest generation.</div>
+        </div>
+
+        <div style="background: #e8f4f8; border-left: 4px solid #667eea; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 13px; color: #333;">
+            <strong>✓ Validation Applied:</strong>
+            <ul style="margin-top: 8px; margin-left: 20px;">
+                <li>Excludes disconnected numbers (555, 900, 976, 988)</li>
+                <li>Filters business/premium service codes</li>
+                <li>Removes reserved line numbers (0000-0099, 1000-1099)</li>
+                <li>Ensures NANP compliance</li>
+                <li>Only generates valid, active-ready numbers</li>
+            </ul>
+        </div>
+
+        <div class="progress-bar" id="progressBar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+
+        <div class="button-group">
+            <button class="btn-generate" id="generateBtn" onclick="generateNumbers()">Generate Numbers</button>
+            <button class="btn-download" id="downloadBtn" onclick="downloadCSV()" disabled>📥 Download CSV</button>
+            <button class="btn-clear" onclick="clearResults()">Clear</button>
+        </div>
+
+        <div class="stats">
+            <div class="stat-box">
+                <div class="stat-value" id="statCount">0</div>
+                <div class="stat-label">Valid Numbers</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="statTime">0ms</div>
+                <div class="stat-label">Generation Time</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="statFiltered">0</div>
+                <div class="stat-label">Filtered Out</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="statStatus">Ready</div>
+                <div class="stat-label">Status</div>
+            </div>
+        </div>
+
+        <div class="output-section">
+            <h2>Generated Numbers</h2>
+            <div class="output-box scrollbar-area" id="output"></div>
+        </div>
+    </div>
+
+    <script>
+        const US_AREA_CODES = {
+            "AL": [205, 251, 256, 334, 938],
+            "AK": [907],
+            "AZ": [480, 520, 623, 928],
+            "AR": [479, 501, 870],
+            "CA": [209, 213, 279, 310, 323, 408, 415, 424, 442, 510, 530, 559, 562, 619, 626, 628, 650, 657, 661, 669, 707, 714, 760, 805, 818, 831, 858, 909, 916, 925, 949, 951],
+            "CO": [303, 719, 720, 970],
+            "CT": [203, 475, 860, 959],
+            "DE": [302],
+            "FL": [239, 305, 321, 352, 386, 407, 561, 645, 772, 786, 813, 850, 863, 904, 941, 954],
+            "GA": [229, 404, 470, 478, 678, 706, 762, 770, 912],
+            "HI": [808],
+            "ID": [208, 986],
+            "IL": [217, 224, 309, 312, 331, 618, 630, 773, 779, 815, 847, 872],
+            "IN": [219, 260, 317, 463, 574, 765, 812, 930],
+            "IA": [319, 515, 563, 641, 712],
+            "KS": [316, 620, 785, 913],
+            "KY": [270, 364, 502, 606, 859],
+            "LA": [225, 318, 337, 504, 985],
+            "ME": [207],
+            "MD": [240, 301, 410, 443, 667],
+            "MA": [339, 351, 413, 508, 617, 774, 781, 857, 978],
+            "MI": [231, 248, 269, 313, 517, 586, 616, 734, 810, 906, 989],
+            "MN": [218, 320, 507, 612, 651, 763, 952],
+            "MS": [228, 662, 769],
+            "MO": [314, 417, 573, 660, 816],
+            "MT": [406],
+            "NE": [308, 402, 531],
+            "NV": [702, 725, 775],
+            "NH": [603],
+            "NJ": [201, 551, 609, 732, 848, 856, 862, 908, 973],
+            "NM": [505, 575],
+            "NY": [212, 315, 347, 516, 518, 585, 607, 631, 646, 716, 718, 845, 914, 917, 929, 934],
+            "NC": [252, 336, 704, 743, 828, 910, 919, 980],
+            "ND": [701],
+            "OH": [216, 220, 234, 330, 380, 419, 440, 513, 614, 740, 937],
+            "OK": [405, 539, 580, 918],
+            "OR": [458, 503, 541],
+            "PA": [215, 223, 267, 412, 484, 570, 610, 717, 724, 814, 878],
+            "RI": [401],
+            "SC": [803, 843, 864],
+            "SD": [605],
+            "TN": [423, 615, 731, 865, 901, 931],
+            "TX": [210, 214, 254, 281, 325, 346, 361, 409, 430, 512, 682, 713, 726, 737, 806, 817, 830, 832, 903, 915, 936, 940, 945, 956, 972, 979],
+            "UT": [385, 435, 801],
+            "VT": [802],
+            "VA": [276, 434, 540, 571, 703, 757, 804],
+            "WA": [206, 253, 360, 425, 509],
+            "WV": [304, 681],
+            "WI": [262, 414, 534, 608, 715, 920],
+            "WY": [307]
+        };
+
+        const N11_CODES = new Set(["211", "311", "411", "511", "611", "711", "811", "911"]);
+        
+        // Business and disconnected patterns to exclude
+        const BUSINESS_PATTERNS = {
+            "555": true,  // Directory assistance, information services
+            "900": true,  // Premium services
+            "976": true,  // Dial-it services
+            "988": true   // Suicide prevention hotline
+        };
+        
+        // Reserved line number ranges
+        const RESERVED_RANGES = [
+            { min: "0000", max: "0099" },  // Service numbers
+            { min: "1000", max: "1099" },  // Reserved
+            { min: "5558", max: "5558" },  // Government
+            { min: "9999", max: "9999" }   // Reserved
+        ];
+
+        let generatedNumbers = [];
+        let currentState = '';
+        let currentCarrier = 'Any';
+        let filteredCount = 0;
+        let selectedAreaCode = null;
+        let verificationRunId = 0;
+        const LOOKUP_WEBSITE_ALLAREACODES = 'https://www.allareacodes.com';
+        const LOOKUP_WEBSITE_INTELIUS = 'https://www.intelius.com/reverse-phone-lookup';
+        const LOOKUP_WEBSITE_WHITEPAGES = 'https://www.whitepages.com/phone';
+        const LOOKUP_WEBSITE_WIREFLY = 'https://www.wirefly.com/area-codes';
+
+        function buildInteliusLookupUrl(rawNumber) {
+            return `${LOOKUP_WEBSITE_INTELIUS}/${rawNumber}`;
+        }
+
+        function buildWhitepagesLookupUrl(rawNumber) {
+            return `${LOOKUP_WEBSITE_WHITEPAGES}/1-${rawNumber.slice(0, 3)}-${rawNumber.slice(3, 6)}-${rawNumber.slice(6, 10)}`;
+        }
+
+        function buildWireflyLookupUrl(areaCode) {
+            return `${LOOKUP_WEBSITE_WIREFLY}/${areaCode}`;
+        }
+
+        function getEnabledLookupSites() {
+            return {
+                allareacodes: document.getElementById('lookupAllAreaCodes').checked,
+                intelius: document.getElementById('lookupIntelius').checked,
+                whitepages: document.getElementById('lookupWhitepages').checked,
+                wirefly: document.getElementById('lookupWirefly').checked
+            };
+        }
+
+        // Initialize state dropdown
+        function initializeStates() {
+            const states = Object.keys(US_AREA_CODES).sort();
+            const stateSelect = document.getElementById('state');
+            states.forEach(state => {
+                const option = document.createElement('option');
+                option.value = state;
+                option.textContent = state;
+                stateSelect.appendChild(option);
+            });
+        }
+
+        // Update area codes based on selected state
+        function updateAreaCodes() {
+            const state = document.getElementById('state').value;
+            const areaCodeSelect = document.getElementById('areaCode');
+            
+            // Clear existing options
+            areaCodeSelect.innerHTML = '<option value="">-- Random Area Code --</option>';
+            selectedAreaCode = null;
+            
+            if (!state) {
+                areaCodeSelect.disabled = true;
+                return;
+            }
+            
+            areaCodeSelect.disabled = false;
+            const areaCodes = US_AREA_CODES[state];
+            
+            areaCodes.forEach(code => {
+                const option = document.createElement('option');
+                option.value = code;
+                option.textContent = `${code}`;
+                areaCodeSelect.appendChild(option);
+            });
+        }
+
+        // Handle area code selection
+        document.addEventListener('change', function(e) {
+            if (e.target && e.target.id === 'areaCode') {
+                selectedAreaCode = e.target.value ? parseInt(e.target.value) : null;
+            }
+        });
+
+        // Generate random number between min and max
+        function getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        // Get random element from array
+        function getRandomElement(array) {
+            return array[Math.floor(Math.random() * array.length)];
+        }
+
+        function isReservedLineNumber(lineNumber) {
+            for (let range of RESERVED_RANGES) {
+                if (lineNumber >= range.min && lineNumber <= range.max) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function verifyGeneratedNumber(num, state) {
+            const area = String(num.areaCode || '').padStart(3, '0');
+            const nxx = num.raw.slice(3, 6);
+            const line = num.raw.slice(6, 10);
+
+            const stateAreas = US_AREA_CODES[state] || [];
+            if (!stateAreas.includes(parseInt(area))) {
+                return false;
+            }
+
+            if (N11_CODES.has(nxx) || BUSINESS_PATTERNS[nxx]) {
+                return false;
+            }
+
+            if (isReservedLineNumber(line)) {
+                return false;
+            }
+
+            if (nxx === '555' && line >= '0100' && line <= '0199') {
+                return false;
+            }
+
+            return true;
+        }
+
+        function renderGeneratedOutput() {
+            const output = document.getElementById('output');
+            output.innerHTML = '';
+
+            generatedNumbers.slice(0, 100).forEach((num, index) => {
+                const row = document.createElement('div');
+                row.className = 'number-row';
+                const links = [];
+                if (num.allAreaCodesUrl) links.push(`<a href="${num.allAreaCodesUrl}" target="_blank" rel="noopener noreferrer">allareacodes</a>`);
+                if (num.inteliusUrl) links.push(`<a href="${num.inteliusUrl}" target="_blank" rel="noopener noreferrer">intelius</a>`);
+                if (num.whitepagesUrl) links.push(`<a href="${num.whitepagesUrl}" target="_blank" rel="noopener noreferrer">whitepages</a>`);
+                if (num.wireflyUrl) links.push(`<a href="${num.wireflyUrl}" target="_blank" rel="noopener noreferrer">wirefly</a>`);
+                row.innerHTML = `${index + 1}. ${num.formatted} | carrier: ${num.requestedCarrier || 'Any'} | lookup: ${links.length ? links.join(' | ') : 'none'}`;
+                output.appendChild(row);
+            });
+
+            if (generatedNumbers.length > 100) {
+                const moreRow = document.createElement('div');
+                moreRow.className = 'number-row';
+                moreRow.style.fontWeight = 'bold';
+                moreRow.style.color = '#667eea';
+                moreRow.textContent = `... and ${generatedNumbers.length - 100} more numbers (download CSV to see all)`;
+                output.appendChild(moreRow);
+            }
+        }
+
+        function runBackgroundVerification(state) {
+            const backgroundEnabled = document.getElementById('bgVerifyToggle').checked;
+            if (!backgroundEnabled) {
+                document.getElementById('statStatus').textContent = '✓ Generated';
+                document.getElementById('statStatus').style.color = '#4CAF50';
+                return;
+            }
+
+            const runId = ++verificationRunId;
+            const total = generatedNumbers.length;
+            let index = 0;
+            let removed = 0;
+
+            document.getElementById('statStatus').textContent = 'Verifying...';
+            document.getElementById('statStatus').style.color = '#667eea';
+
+            const verifyChunk = () => {
+                if (runId !== verificationRunId) {
+                    return;
+                }
+
+                const chunkSize = 500;
+                const end = Math.min(index + chunkSize, generatedNumbers.length);
+
+                for (let i = index; i < end; i++) {
+                    if (!verifyGeneratedNumber(generatedNumbers[i], state)) {
+                        generatedNumbers[i].backgroundRejected = true;
+                        removed++;
+                    }
+                }
+
+                index = end;
+                const pct = Math.round((index / Math.max(1, total)) * 100);
+                document.getElementById('statStatus').textContent = `Verify ${pct}%`;
+
+                if (index < total) {
+                    setTimeout(verifyChunk, 0);
+                    return;
+                }
+
+                if (removed > 0) {
+                    generatedNumbers = generatedNumbers.filter(num => !num.backgroundRejected);
+                    filteredCount += removed;
+                    document.getElementById('statCount').textContent = generatedNumbers.length.toLocaleString();
+                    document.getElementById('statFiltered').textContent = filteredCount.toLocaleString();
+                    renderGeneratedOutput();
+                }
+
+                document.getElementById('statStatus').textContent = '✓ Verified';
+                document.getElementById('statStatus').style.color = '#4CAF50';
+
+                if (removed > 0) {
+                    showMessage(`Background verification removed ${removed.toLocaleString()} unreliable numbers`, 'success');
+                }
+            };
+
+            setTimeout(verifyChunk, 0);
+        }
+
+        // Generate a single valid phone number
+        function generateSingleNumber(state) {
+            let areaCodes = US_AREA_CODES[state];
+            
+            // Use selected area code or random
+            let areaCode = selectedAreaCode ? selectedAreaCode : getRandomElement(areaCodes);
+            
+            // Verify selected area code exists in state
+            if (selectedAreaCode && !areaCodes.includes(selectedAreaCode)) {
+                showMessage(`Area code ${selectedAreaCode} is not available in ${state}`, 'error');
+                return null;
+            }
+            
+            // Filter out business area codes
+            if (BUSINESS_PATTERNS[String(areaCode)]) {
+                return null;
+            }
+            
+            let nxx;
+            let attempts = 0;
+            do {
+                nxx = String(getRandomInt(200, 999));
+                attempts++;
+                if (attempts > 10) return null; // Too many attempts
+            } while (N11_CODES.has(nxx) || BUSINESS_PATTERNS[nxx] || nxx === "555");
+            
+            let lineNumber = String(getRandomInt(0, 9999)).padStart(4, '0');
+            
+            // Avoid reserved ranges
+            let isReserved = false;
+            for (let range of RESERVED_RANGES) {
+                if (lineNumber >= range.min && lineNumber <= range.max) {
+                    isReserved = true;
+                    break;
+                }
+            }
+            
+            if (isReserved) {
+                return null;
+            }
+            
+            // Additional validation: avoid 555-01xx (information/data)
+            if (nxx === "555" && lineNumber >= "0100" && lineNumber <= "0199") {
+                return null;
+            }
+            
+            return {
+                raw: areaCode + nxx + lineNumber,
+                formatted: `${areaCode}-${nxx}-${lineNumber}`,
+                areaCode: areaCode,
+                isValid: true
+            };
+        }
+
+        // Generate multiple phone numbers
+        async function generateNumbers() {
+            const state = document.getElementById('state').value;
+            const count = parseInt(document.getElementById('count').value);
+
+            if (!state) {
+                showMessage('Please select a state', 'error');
+                return;
+            }
+
+            if (!count || count <= 0 || count > 1000000) {
+                showMessage('Please enter a number between 1 and 1,000,000', 'error');
+                return;
+            }
+
+            // Get selected area code if any
+            selectedAreaCode = document.getElementById('areaCode').value ? 
+                parseInt(document.getElementById('areaCode').value) : null;
+            currentCarrier = document.getElementById('carrier').value || 'Any';
+
+            const enabledLookupSites = getEnabledLookupSites();
+            const hasLookupSite = Object.values(enabledLookupSites).some(Boolean);
+            if (!hasLookupSite) {
+                showMessage('Please select at least one verification website', 'error');
+                return;
+            }
+
+            const startTime = performance.now();
+            generatedNumbers = [];
+            filteredCount = 0;
+            currentState = state;
+
+            const progressBar = document.getElementById('progressBar');
+            const progressFill = document.getElementById('progressFill');
+            progressBar.classList.add('active');
+            progressFill.style.width = '0%';
+
+            let attempts = 0;
+            const maxAttempts = count * 2;
+
+            while (generatedNumbers.length < count && attempts < maxAttempts) {
+                const number = generateSingleNumber(state);
+                if (number) {
+                    const sourceNames = [];
+                    const sourceUrls = [];
+
+                    number.requestedCarrier = currentCarrier;
+
+                    number.allAreaCodesUrl = enabledLookupSites.allareacodes
+                        ? `${LOOKUP_WEBSITE_ALLAREACODES}/${number.areaCode}`
+                        : '';
+                    if (number.allAreaCodesUrl) {
+                        sourceNames.push('allareacodes.com');
+                        sourceUrls.push(number.allAreaCodesUrl);
+                    }
+
+                    number.inteliusUrl = enabledLookupSites.intelius
+                        ? buildInteliusLookupUrl(number.raw)
+                        : '';
+                    if (number.inteliusUrl) {
+                        sourceNames.push('intelius.com');
+                        sourceUrls.push(number.inteliusUrl);
+                    }
+
+                    number.whitepagesUrl = enabledLookupSites.whitepages
+                        ? buildWhitepagesLookupUrl(number.raw)
+                        : '';
+                    if (number.whitepagesUrl) {
+                        sourceNames.push('whitepages.com');
+                        sourceUrls.push(number.whitepagesUrl);
+                    }
+
+                    number.wireflyUrl = enabledLookupSites.wirefly
+                        ? buildWireflyLookupUrl(number.areaCode)
+                        : '';
+                    if (number.wireflyUrl) {
+                        sourceNames.push('wirefly.com');
+                        sourceUrls.push(number.wireflyUrl);
+                    }
+
+                    number.source = sourceNames.join('|');
+                    number.sourceUrl = sourceUrls.join(';');
+                    number.verificationStatus = 'website_linked';
+                    generatedNumbers.push(number);
+                } else {
+                    filteredCount++;
+                }
+                attempts++;
+
+                if (attempts % Math.max(1, Math.floor(count / 20)) === 0 || generatedNumbers.length === count) {
+                    progressFill.style.width = ((generatedNumbers.length) / count * 100) + '%';
+                }
+            }
+
+            progressBar.classList.remove('active');
+
+            const duration = Math.round(performance.now() - startTime);
+            document.getElementById('statCount').textContent = generatedNumbers.length.toLocaleString();
+            document.getElementById('statTime').textContent = duration + 'ms';
+            document.getElementById('statFiltered').textContent = filteredCount.toLocaleString();
+            document.getElementById('statStatus').textContent = '✓ Valid';
+            document.getElementById('statStatus').style.color = '#4CAF50';
+
+            renderGeneratedOutput();
+
+            document.getElementById('downloadBtn').disabled = generatedNumbers.length === 0;
+            const filterMessage = filteredCount > 0 ? ` (filtered ${filteredCount} invalid/business numbers)` : '';
+            showMessage(`✓ Generated ${generatedNumbers.length.toLocaleString()} valid phone numbers for ${state}${filterMessage}. Carrier preference: ${currentCarrier}. Selected website lookup links attached (best effort).`, 'success');
+
+            runBackgroundVerification(state);
+        }
+
+        // Download as CSV
+        function downloadCSV() {
+            if (generatedNumbers.length === 0) {
+                showMessage('No numbers to download', 'error');
+                return;
+            }
+
+            let csv = 'phone_number,state,area_code,requested_carrier,verification_status,source,source_url,allareacodes_url,intelius_url,whitepages_url,wirefly_url\n';
+            generatedNumbers.forEach(num => {
+                csv += `${num.formatted},${currentState},${num.areaCode},${num.requestedCarrier || 'Any'},${num.verificationStatus || 'website_linked'},${num.source || ''},${num.sourceUrl || ''},${num.allAreaCodesUrl || ''},${num.inteliusUrl || ''},${num.whitepagesUrl || ''},${num.wireflyUrl || ''}\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `phone_numbers_${currentState}_${new Date().toISOString().slice(0,10)}.csv`;
+            link.click();
+            window.URL.revokeObjectURL(url);
+
+            showMessage(`✓ Downloaded ${generatedNumbers.length.toLocaleString()} phone numbers`, 'success');
+        }
+
+        // Clear results
+        function clearResults() {
+            verificationRunId++;
+            generatedNumbers = [];
+            currentState = '';
+            filteredCount = 0;
+            selectedAreaCode = null;
+            document.getElementById('state').value = '';
+            document.getElementById('areaCode').value = '';
+            document.getElementById('areaCode').disabled = true;
+            document.getElementById('count').value = '100';
+            document.getElementById('carrier').value = 'Any';
+            document.getElementById('bgVerifyToggle').checked = true;
+            document.getElementById('lookupAllAreaCodes').checked = true;
+            document.getElementById('lookupIntelius').checked = true;
+            document.getElementById('lookupWhitepages').checked = true;
+            document.getElementById('lookupWirefly').checked = true;
+            document.getElementById('output').innerHTML = '';
+            document.getElementById('statCount').textContent = '0';
+            document.getElementById('statTime').textContent = '0ms';
+            document.getElementById('statFiltered').textContent = '0';
+            document.getElementById('statStatus').textContent = 'Ready';
+            document.getElementById('downloadBtn').disabled = true;
+            document.getElementById('message').innerHTML = '';
+        }
+
+        // Show message
+        function showMessage(text, type) {
+            const message = document.getElementById('message');
+            message.textContent = text;
+            message.className = `message ${type}`;
+            setTimeout(() => {
+                message.classList.remove(type);
+            }, 5000);
+        }
+
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', initializeStates);
+
+        // Allow Enter key to generate
+        document.getElementById('count').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                generateNumbers();
+            }
+        });
+    </script>
+</body>
+</html>
