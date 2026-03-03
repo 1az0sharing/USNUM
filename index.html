@@ -315,6 +315,12 @@
             <div class="states-info">Supports high-volume generation up to 1,000,000</div>
         </div>
 
+        <div class="form-group" style="background:#f8fafc; border:1px solid #e5e7eb; border-radius:8px; padding:12px 14px;">
+            <label style="margin-bottom:8px;">Available Numbers in Selected State</label>
+            <div class="states-info" id="capSummary">Select a state to see total available capacity and low-stress set guidance.</div>
+            <div class="states-info" id="capSets" style="margin-top:6px;"></div>
+        </div>
+
         <div class="form-group">
             <label style="margin-bottom: 10px;">Carrier Selection (Choose one or more):</label>
             <label for="carrierATT" style="display:flex; align-items:center; gap:8px; font-weight:500; margin-bottom:6px;">
@@ -514,6 +520,7 @@
         let selectedAreaCode = null;
         let verificationRunId = 0;
         const USED_NUMBERS_STORAGE_KEY = 'usnum_used_numbers_v1';
+        const RECOMMENDED_SET_SIZE = 100000;
         const LOOKUP_WEBSITE_ALLAREACODES = 'https://www.allareacodes.com';
         const LOOKUP_WEBSITE_INTELIUS = 'https://www.intelius.com/reverse-phone-lookup';
         const LOOKUP_WEBSITE_WHITEPAGES = 'https://www.whitepages.com/phone';
@@ -587,6 +594,61 @@
             saveUsedNumbersMap(usedMap);
         }
 
+        function countValidNxx() {
+            let valid = 0;
+            for (let i = 200; i <= 999; i++) {
+                const nxx = String(i).padStart(3, '0');
+                if (N11_CODES.has(nxx) || BUSINESS_PATTERNS[nxx] || nxx === '555') {
+                    continue;
+                }
+                valid++;
+            }
+            return valid;
+        }
+
+        function countValidLineNumbers() {
+            let valid = 0;
+            for (let i = 0; i <= 9999; i++) {
+                const line = String(i).padStart(4, '0');
+                if (isReservedLineNumber(line)) {
+                    continue;
+                }
+                valid++;
+            }
+            return valid;
+        }
+
+        function updateCapacityInfo() {
+            const state = document.getElementById('state').value;
+            const summary = document.getElementById('capSummary');
+            const sets = document.getElementById('capSets');
+
+            if (!state || !US_AREA_CODES[state]) {
+                summary.textContent = 'Select a state to see total available capacity and low-stress set guidance.';
+                sets.textContent = '';
+                return;
+            }
+
+            const validNxxCount = countValidNxx();
+            const validLineCount = countValidLineNumbers();
+            const perAreaCapacity = validNxxCount * validLineCount;
+            const totalCapacity = (US_AREA_CODES[state].length || 0) * perAreaCapacity;
+
+            const usedMap = loadUsedNumbersMap();
+            const usedCount = Math.min(
+                totalCapacity,
+                Array.isArray(usedMap[state]) ? usedMap[state].length : 0
+            );
+            const remaining = Math.max(0, totalCapacity - usedCount);
+
+            summary.textContent = `State ${state}: total ${totalCapacity.toLocaleString()} | used ${usedCount.toLocaleString()} | remaining ${remaining.toLocaleString()}`;
+
+            const requested = parseInt(document.getElementById('count').value || '0', 10);
+            const requestSets = requested > 0 ? Math.ceil(requested / RECOMMENDED_SET_SIZE) : 0;
+            const possibleSets = Math.floor(remaining / RECOMMENDED_SET_SIZE);
+            sets.textContent = `Recommended set size: ${RECOMMENDED_SET_SIZE.toLocaleString()} per run. This request: ${requestSets.toLocaleString()} set(s). Remaining capacity: ~${possibleSets.toLocaleString()} full set(s).`;
+        }
+
         // Initialize state dropdown
         function initializeStates() {
             const states = Object.keys(US_AREA_CODES).sort();
@@ -622,6 +684,8 @@
                 option.textContent = `${code}`;
                 areaCodeSelect.appendChild(option);
             });
+
+            updateCapacityInfo();
         }
 
         // Handle area code selection
@@ -1043,6 +1107,8 @@
 
         // Initialize on page load
         window.addEventListener('DOMContentLoaded', initializeStates);
+
+        document.getElementById('count').addEventListener('input', updateCapacityInfo);
 
         // Allow Enter key to generate
         document.getElementById('count').addEventListener('keypress', function(e) {
