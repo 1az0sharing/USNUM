@@ -316,20 +316,44 @@
         </div>
 
         <div class="form-group">
-            <label for="carrier">Carrier Preference (Optional):</label>
-            <select id="carrier">
-                <option value="Any">Any Carrier</option>
-                <option value="AT&T">AT&T</option>
-                <option value="Verizon">Verizon</option>
-                <option value="T-Mobile">T-Mobile</option>
-                <option value="Sprint">Sprint</option>
-                <option value="US Cellular">US Cellular</option>
-                <option value="Boost Mobile">Boost Mobile</option>
-                <option value="Cricket Wireless">Cricket Wireless</option>
-                <option value="Metro by T-Mobile">Metro by T-Mobile</option>
-                <option value="Xfinity Mobile">Xfinity Mobile</option>
-            </select>
-            <div class="states-info">Tag only in website mode (not API-verified).</div>
+            <label style="margin-bottom: 10px;">Carrier Selection (Choose one or more):</label>
+            <label for="carrierATT" style="display:flex; align-items:center; gap:8px; font-weight:500; margin-bottom:6px;">
+                <input type="checkbox" id="carrierATT" checked style="width:auto;">
+                AT&T
+            </label>
+            <label for="carrierVerizon" style="display:flex; align-items:center; gap:8px; font-weight:500; margin-bottom:6px;">
+                <input type="checkbox" id="carrierVerizon" checked style="width:auto;">
+                Verizon
+            </label>
+            <label for="carrierTMobile" style="display:flex; align-items:center; gap:8px; font-weight:500; margin-bottom:6px;">
+                <input type="checkbox" id="carrierTMobile" checked style="width:auto;">
+                T-Mobile
+            </label>
+            <label for="carrierSprint" style="display:flex; align-items:center; gap:8px; font-weight:500; margin-bottom:6px;">
+                <input type="checkbox" id="carrierSprint" style="width:auto;">
+                Sprint
+            </label>
+            <label for="carrierUSCellular" style="display:flex; align-items:center; gap:8px; font-weight:500; margin-bottom:6px;">
+                <input type="checkbox" id="carrierUSCellular" style="width:auto;">
+                US Cellular
+            </label>
+            <label for="carrierBoost" style="display:flex; align-items:center; gap:8px; font-weight:500; margin-bottom:6px;">
+                <input type="checkbox" id="carrierBoost" style="width:auto;">
+                Boost Mobile
+            </label>
+            <label for="carrierCricket" style="display:flex; align-items:center; gap:8px; font-weight:500; margin-bottom:6px;">
+                <input type="checkbox" id="carrierCricket" style="width:auto;">
+                Cricket Wireless
+            </label>
+            <label for="carrierMetro" style="display:flex; align-items:center; gap:8px; font-weight:500; margin-bottom:6px;">
+                <input type="checkbox" id="carrierMetro" style="width:auto;">
+                Metro by T-Mobile
+            </label>
+            <label for="carrierXfinity" style="display:flex; align-items:center; gap:8px; font-weight:500; margin-bottom:0;">
+                <input type="checkbox" id="carrierXfinity" style="width:auto;">
+                Xfinity Mobile
+            </label>
+            <div class="states-info">Each generated number is tagged with one selected carrier (round-robin assignment).</div>
         </div>
 
         <div class="form-group">
@@ -481,7 +505,7 @@
 
         let generatedNumbers = [];
         let currentState = '';
-        let currentCarrier = 'Any';
+        let currentCarriers = [];
         let filteredCount = 0;
         let selectedAreaCode = null;
         let verificationRunId = 0;
@@ -509,6 +533,20 @@
                 whitepages: document.getElementById('lookupWhitepages').checked,
                 wirefly: document.getElementById('lookupWirefly').checked
             };
+        }
+
+        function getSelectedCarriers() {
+            const selected = [];
+            if (document.getElementById('carrierATT').checked) selected.push('AT&T');
+            if (document.getElementById('carrierVerizon').checked) selected.push('Verizon');
+            if (document.getElementById('carrierTMobile').checked) selected.push('T-Mobile');
+            if (document.getElementById('carrierSprint').checked) selected.push('Sprint');
+            if (document.getElementById('carrierUSCellular').checked) selected.push('US Cellular');
+            if (document.getElementById('carrierBoost').checked) selected.push('Boost Mobile');
+            if (document.getElementById('carrierCricket').checked) selected.push('Cricket Wireless');
+            if (document.getElementById('carrierMetro').checked) selected.push('Metro by T-Mobile');
+            if (document.getElementById('carrierXfinity').checked) selected.push('Xfinity Mobile');
+            return selected;
         }
 
         // Initialize state dropdown
@@ -756,7 +794,12 @@
             // Get selected area code if any
             selectedAreaCode = document.getElementById('areaCode').value ? 
                 parseInt(document.getElementById('areaCode').value) : null;
-            currentCarrier = document.getElementById('carrier').value || 'Any';
+            const selectedCarriers = getSelectedCarriers();
+            if (selectedCarriers.length === 0) {
+                showMessage('Please select at least one carrier', 'error');
+                return;
+            }
+            currentCarriers = selectedCarriers;
 
             const enabledLookupSites = getEnabledLookupSites();
             const hasLookupSite = Object.values(enabledLookupSites).some(Boolean);
@@ -784,7 +827,7 @@
                     const sourceNames = [];
                     const sourceUrls = [];
 
-                    number.requestedCarrier = currentCarrier;
+                    number.requestedCarrier = selectedCarriers[generatedNumbers.length % selectedCarriers.length];
 
                     number.allAreaCodesUrl = enabledLookupSites.allareacodes
                         ? `${LOOKUP_WEBSITE_ALLAREACODES}/${number.areaCode}`
@@ -845,7 +888,7 @@
 
             document.getElementById('downloadBtn').disabled = generatedNumbers.length === 0;
             const filterMessage = filteredCount > 0 ? ` (filtered ${filteredCount} invalid/business numbers)` : '';
-            showMessage(`✓ Generated ${generatedNumbers.length.toLocaleString()} valid phone numbers for ${state}${filterMessage}. Carrier preference: ${currentCarrier}. Selected website lookup links attached (best effort).`, 'success');
+            showMessage(`✓ Generated ${generatedNumbers.length.toLocaleString()} valid phone numbers for ${state}${filterMessage}. Carriers: ${selectedCarriers.join(', ')}. Each number includes selected website lookup links for verification.`, 'success');
 
             runBackgroundVerification(state);
         }
@@ -884,7 +927,15 @@
             document.getElementById('areaCode').value = '';
             document.getElementById('areaCode').disabled = true;
             document.getElementById('count').value = '100';
-            document.getElementById('carrier').value = 'Any';
+            document.getElementById('carrierATT').checked = true;
+            document.getElementById('carrierVerizon').checked = true;
+            document.getElementById('carrierTMobile').checked = true;
+            document.getElementById('carrierSprint').checked = false;
+            document.getElementById('carrierUSCellular').checked = false;
+            document.getElementById('carrierBoost').checked = false;
+            document.getElementById('carrierCricket').checked = false;
+            document.getElementById('carrierMetro').checked = false;
+            document.getElementById('carrierXfinity').checked = false;
             document.getElementById('bgVerifyToggle').checked = true;
             document.getElementById('lookupAllAreaCodes').checked = true;
             document.getElementById('lookupIntelius').checked = true;

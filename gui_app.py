@@ -4,7 +4,6 @@ from tkinter import scrolledtext
 import threading
 import csv
 from us_phone_generator import USPhoneNumberGenerator
-import os
 
 class PhoneGeneratorApp:
     def __init__(self, root):
@@ -41,11 +40,12 @@ class PhoneGeneratorApp:
         count_entry = ttk.Entry(main_frame, textvariable=self.count_var, width=35)
         count_entry.grid(row=2, column=1, sticky="ew", padx=5)
 
-        # Carrier selection
-        ttk.Label(main_frame, text="Carrier Preference:", font=("Helvetica", 11)).grid(row=3, column=0, sticky=tk.W, pady=5)
-        self.carrier_var = tk.StringVar(value="Any")
-        carriers = [
-            "Any",
+        # Carrier selection (multi-select)
+        ttk.Label(main_frame, text="Carrier Selection:", font=("Helvetica", 11)).grid(row=3, column=0, sticky=tk.W, pady=5)
+        carrier_frame = ttk.Frame(main_frame)
+        carrier_frame.grid(row=3, column=1, sticky="ew", padx=5)
+
+        self.carrier_names = [
             "AT&T",
             "Verizon",
             "T-Mobile",
@@ -56,14 +56,24 @@ class PhoneGeneratorApp:
             "Metro by T-Mobile",
             "Xfinity Mobile",
         ]
-        carrier_combo = ttk.Combobox(
-            main_frame,
-            textvariable=self.carrier_var,
-            values=carriers,
-            state="readonly",
-            width=35,
-        )
-        carrier_combo.grid(row=3, column=1, sticky="ew", padx=5)
+        self.carrier_vars = {
+            "AT&T": tk.BooleanVar(value=True),
+            "Verizon": tk.BooleanVar(value=True),
+            "T-Mobile": tk.BooleanVar(value=True),
+            "Sprint": tk.BooleanVar(value=False),
+            "US Cellular": tk.BooleanVar(value=False),
+            "Boost Mobile": tk.BooleanVar(value=False),
+            "Cricket Wireless": tk.BooleanVar(value=False),
+            "Metro by T-Mobile": tk.BooleanVar(value=False),
+            "Xfinity Mobile": tk.BooleanVar(value=False),
+        }
+
+        for idx, carrier in enumerate(self.carrier_names):
+            ttk.Checkbutton(
+                carrier_frame,
+                text=carrier,
+                variable=self.carrier_vars[carrier],
+            ).grid(row=idx // 3, column=idx % 3, sticky=tk.W, padx=(0, 10), pady=2)
         
         # Buttons frame
         btn_frame = ttk.Frame(main_frame)
@@ -93,8 +103,12 @@ class PhoneGeneratorApp:
         main_frame.rowconfigure(7, weight=1)
         
         self.generated_numbers = []
+        self.generated_rows = []
         self.selected_state = None
-        self.selected_carrier = "Any"
+        self.selected_carriers = []
+
+    def get_selected_carriers(self):
+        return [carrier for carrier in self.carrier_names if self.carrier_vars[carrier].get()]
     
     def generate_numbers(self):
         state = self.state_var.get()
@@ -112,7 +126,11 @@ class PhoneGeneratorApp:
             return
         
         # Disable button and show progress
-        self.selected_carrier = self.carrier_var.get() or "Any"
+        self.selected_carriers = self.get_selected_carriers()
+        if not self.selected_carriers:
+            messagebox.showerror("Error", "Please select at least one carrier")
+            return
+
         self.progress_label.config(text=f"Generating {count} numbers for {state}...")
         self.root.update()
         
@@ -121,17 +139,26 @@ class PhoneGeneratorApp:
             try:
                 self.generated_numbers = USPhoneNumberGenerator.generate_numbers(state, count)
                 self.selected_state = state
+                self.generated_rows = [
+                    {
+                        "number": num,
+                        "carrier": self.selected_carriers[idx % len(self.selected_carriers)],
+                    }
+                    for idx, num in enumerate(self.generated_numbers)
+                ]
                 
                 # Format output
                 output = (
                     f"Generated {len(self.generated_numbers)} phone numbers for {state} "
-                    f"(Carrier: {self.selected_carrier})\n"
+                    f"(Carriers: {', '.join(self.selected_carriers)})\n"
                 )
                 output += "=" * 60 + "\n\n"
                 
-                for i, num in enumerate(self.generated_numbers, 1):
+                for i, row in enumerate(self.generated_rows, 1):
+                    num = row["number"]
+                    carrier = row["carrier"]
                     formatted = f"{num[:3]}-{num[3:6]}-{num[6:]}"
-                    output += f"{i}. {formatted} | carrier: {self.selected_carrier}\n"
+                    output += f"{i}. {formatted} | carrier: {carrier}\n"
                     if i % 50 == 0:  # Add a blank line every 50 numbers
                         output += "\n"
                 
@@ -171,17 +198,18 @@ class PhoneGeneratorApp:
             with open(file_path, 'w', newline='') as f:
                 writer = csv.writer(f)
                 writer.writerow(["phone_number", "state", "area_code", "requested_carrier"])
-                for number in self.generated_numbers:
+                for row in self.generated_rows:
+                    number = row["number"]
                     writer.writerow([
                         f"{number[:3]}-{number[3:6]}-{number[6:]}",
                         self.selected_state,
                         number[:3],
-                        self.selected_carrier,
+                        row["carrier"],
                     ])
             
             messagebox.showinfo("Success", f"File saved successfully!\n{file_path}")
             self.progress_label.config(
-                text=f"✓ Saved {len(self.generated_numbers)} numbers to CSV (Carrier: {self.selected_carrier})"
+                text=f"✓ Saved {len(self.generated_numbers)} numbers to CSV"
             )
         except Exception as e:
             messagebox.showerror("Error", f"Failed to save file: {str(e)}")
@@ -190,9 +218,18 @@ class PhoneGeneratorApp:
         self.text_area.config(state=tk.NORMAL)
         self.text_area.delete(1.0, tk.END)
         self.generated_numbers = []
+        self.generated_rows = []
         self.selected_state = None
-        self.selected_carrier = "Any"
-        self.carrier_var.set("Any")
+        self.selected_carriers = []
+        self.carrier_vars["AT&T"].set(True)
+        self.carrier_vars["Verizon"].set(True)
+        self.carrier_vars["T-Mobile"].set(True)
+        self.carrier_vars["Sprint"].set(False)
+        self.carrier_vars["US Cellular"].set(False)
+        self.carrier_vars["Boost Mobile"].set(False)
+        self.carrier_vars["Cricket Wireless"].set(False)
+        self.carrier_vars["Metro by T-Mobile"].set(False)
+        self.carrier_vars["Xfinity Mobile"].set(False)
         self.progress_label.config(text="")
 
 
